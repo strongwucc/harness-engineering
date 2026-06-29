@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.6
-**更新日期**: 2026-06-26
+**版本**: v1.7
+**更新日期**: 2026-06-29
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -60,6 +60,9 @@
 | [Deep Agents Deploy](https://www.langchain.com/blog/deep-agents-deploy-an-open-alternative-to-claude-managed-agents) | LangChain（2026.04） | 开源模型无关 Agent Harness，集成 MCP/A2A/Agent Protocol，单命令部署 |
 | [Deep Agents v0.6](https://www.langchain.com/blog/deep-agents-0-6) | LangChain（2026.05） | 开源模型专属 Harness Profiles，20x+ 成本优势下缩小与前沿模型差距 |
 | [Building Reliable Agentic AI Systems](https://martinfowler.com/articles/reliable-llm-bayer.html) | Martin Fowler / ThoughtWorks（2026.06） | Bayer AG PRINCE 制药研发平台案例，上下文工程 + Harness 工程双重透镜 |
+| [Agent Harness Engineering: A Survey](https://openreview.net/forum?id=3hXEPbG0dh) | Li et al. / TMLR（2026.04） | ETCLOVG 七层 taxonomy，Observability/Governance 独立化，映射 170+ 开源项目 |
+| [From Question Answering to Task Completion](https://www.preprints.org/manuscript/202606.1312) | 华为 Noah's Ark Lab（2026.06） | execution harness 六组件 + 四范式演进，三大基准 model-harness 对照量化，value-aware evaluation |
+| [Agent Harness Engineering](https://addyosmani.com/blog/agent-harness-engineering/) | Addy Osmani / Google（2026.06） | ratchet 心法、AGENTS.md 精简、hooks 执行层（success is silent, failures are verbose）、Harness-as-a-Service |
 
 ---
 
@@ -81,6 +84,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 领域术语有统一定义（CONTEXT.md 或术语表）
 - [ ] Git 提交规范有明确定义
 - [ ] 工作流路径有清晰说明（新功能 / Bug 修复各走什么流程）
+- [ ] 指南文件保持精简（pilot's checklist 而非 style guide），每条规则可追溯到一次真实失败（ratchet 心法——参考 Osmani Agent Harness Engineering）
 
 **评估标准**：
 - 1 星：无任何项目级指南文件
@@ -218,6 +222,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Harness 组件的贡献可归因（工具 vs 中间件 vs 系统提示词各自对成功率的贡献可独立测量）
 - [ ] Harness 有自愈能力（Agent 可自动识别 Harness 缺陷 → 提出修改 → 验证 → 合入，参考 Self-Harness 的 Weakness Mining→Proposal→Validation 闭环）
 - [ ] Harness 与模型权重的协同优化有考量（是否只优化 Harness 而忽略了权重联合优化的潜力，参考 SIA）
+- [ ] 错误→规则的 ratchet 机制存在（Agent 的每次失败都被固化为一条可追溯的 Harness 规则，而非停留在"偶发事故"——参考 Osmani）
 
 **评估标准**：
 - 1 星：无任何熵管理意识
@@ -350,6 +355,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Harness 配置可从文档重建（非仅存在于运行时内存中）
 - [ ] 不同模型在同一 Harness 下的性能差异可独立测量（Harness 方差 vs 模型方差可分解）
 - [ ] 基准测试结果附带 Harness 配置说明（非仅报告模型名称和分数）
+- [ ] 评估采用 value-aware 视角（不只看 task success，同时报告成本、延迟、超时率、恢复质量——参考 QA→Task Completion Survey）
 
 #### D9.3 Harness 可迁移性
 
@@ -515,3 +521,4 @@ Level X（一句话总结）
 | 2026-06-15 | v1.4 | 补充 5 个权威来源（共 30 个）：Loop Engineering（Addy Osmani）、Structured Graph Harness、LOOP Skill Engine、Continual Harness、Hacker-Fixer Loop；D8 工作流编排扩展为 Loop 时代：增加自动化调度、跨会话状态、目标驱动、确定性回放四项检查项；新增反模式 10（Loop 先行，Harness 缺位） |
 | 2026-06-22 | v1.5 | 补充 7 个权威来源（共 37 个）：Effective harnesses for long-running agents、Demystifying evals、When AI builds itself、Better Harness（LangChain）、How Good Is Your Harness?、Memory-Aware SE Agents、Survey on Agent Skills；修复 Anthropic harness-design 失效链接（→ harness-design-long-running-apps）；D2 增加情景/时序记忆检查项、D6 增加 capability/regression evals 与 holdout set 两项检查项、D8 增加跨 context window 状态交接检查项、D9 来源补充 How Good Is Your Harness 统计归因证据；新增反模式 11（审查瓶颈/Amdahl 陷阱） |
 | 2026-06-26 | v1.6 | 补充 11 个权威来源（共 48 个）：Harness-MU、Categorical Architecture、Algorithm Discovery Harness、Physical AI Harness、Post-Training Interplay（5 篇学术论文）；Tuning Deep Agents (Harness Profiles)、Custom Agent Harness (Middleware)、Deep Agents Deploy、Deep Agents v0.6、Bayer AG PRINCE（6 篇行业文章）；D5 安全防护新增多用户治理检查项；D8 工作流编排新增模型专属 Harness 配置 + 可组合中间件两项检查项；D5/D8 五星标准同步扩展 |
+| 2026-06-29 | v1.7 | 补充 3 个权威来源（共 51 个）：ETCLOVG Survey（OpenReview/TMLR）、QA→Task Completion Survey（华为）、Osmani Agent Harness Engineering 博客；D1.1 新增 AGENTS.md 精简 + ratchet 检查项、D4 新增错误→规则 ratchet 检查项、D9.2 新增 value-aware evaluation 检查项 |

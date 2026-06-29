@@ -45,6 +45,8 @@ Harness 是"Agent 中除模型之外的一切"。它是一个系统的设计与�
 
 > **Harness——而非底层模型——是决定 Agent 可靠性的主要因素。**
 
+此后这一结论被两篇 2026 年的系统综述进一步坐实并深化。Li 等人的《Agent Harness Engineering: A Survey》（TMLR 投稿）把 Harness 分解为 **ETCLOVG 七层**（执行环境 / 工具接口 / 上下文管理 / 生命周期编排 / 可观测性 / 验证 / 治理），并映射了 **170+ 个开源项目**——证明这不再是一两家公司的经验，而是整个生态的共识结构。Guo 等人（华为）的《From Question Answering to Task Completion》则把"Agent = 模型 + 执行 Harness"作为统一切入点，提出**四范式演进**（提示词 → 上下文/工作流 → Harness → 模型原生训练与协同进化），并用 SWE-bench、Terminal-Bench 2.0、WebArena 三大基准的对照数据量化了"同模型不同 Harness"的差距。
+
 ---
 
 ## 三、三年的范式迁移：严谨从未消失，它只是在搬家
@@ -329,6 +331,28 @@ Harness 工程通过**定期清理 Agent** 来解决：
 
 这些 Agent 按计划运行——每天、每周或由特定事件触发——保持代码库对人类审查者和未来 AI Agent 都是健康的。
 
+### 4.4 运行时分解：从六组件到七层
+
+CAR 框架（4.2）按"职责"把 Harness 分成三层（Control/Agency/Runtime）。学术界还提供了另一种正交视角——按**运行时职责**把 Harness 拆成可独立设计的组件。
+
+**六组件分解**（Meng et al., 2026）将执行 Harness 定义为六个耦合的运行时职责：观察接口（observation）、上下文管理（context）、控制循环（control）、动作接口（action）、状态与产物存储（state）、验证与治理（verification/governance）。这套分解的关键洞察是：**记忆、动作这些概念在功能层是抽象的，但在部署层是由 schema、权限、沙箱、检索策略等具体机制实现的**——同一个"记忆"功能，可能落地为上下文选择、产物存储、检索索引或检查点策略。这正是为什么"换模型不变 Harness 也能改变表现"——Harness 改变的是这些运行时机制的配置。
+
+**七层 ETCLOVG 分类法**（Li et al., 2026）在六组件基础上做了关键升级：把**可观测性（Observability）**和**治理（Governance）**从辅助功能提升为独立的架构层。完整的七层是：
+
+| 层 | 职责 |
+|----|------|
+| **E**xecution environment | 执行环境、沙箱 |
+| **T**ool interface | 工具接口、MCP |
+| **C**ontext management | 上下文管理 |
+| **L**ifecycle / Orchestration | 生命周期编排、控制循环 |
+| **O**bservability | 可观测性（日志、追踪、成本计量） |
+| **V**erification | 验证（测试、断言、LLM-as-judge） |
+| **G**overnance | 治理（审批门、权限、预算、审计） |
+
+把 Observability 和 Governance 单列出来，反映了一个生产级共识：**可观测性和治理不是"做好之后再加"的补丁，而是和上下文、工具同等重要的一等架构关注点**。Li 等人将 170+ 个开源项目映射到这套七层上，暴露了生态的典型覆盖缺口——大多数项目在 Context 和 Tool 层做得扎实，在 Observability 和 Governance 层明显薄弱。
+
+至此，第四章给了三种互补的 Harness 解剖视角：**Fowler 四象限**（按约束类型）、**CAR 三层**（按职责分层）、**六/七组件**（按运行时职责）。诊断 Harness 缺口时，三者交叉使用最有效——四象限告诉你"缺哪类约束"，CAR 告诉你"哪一层不完整"，六/七组件告诉你"哪个运行时职责没实现"。
+
 ---
 
 ## 五、谁在实践 Harness？真实案例
@@ -519,6 +543,26 @@ LangChain 对 1,300+ 专业人士的调查揭示了 Agent 工程在 2026 年的�
 
 这个案例的独特价值在于：它证明了 Harness 设计原则**不仅适用于软件工程，也适用于科学发现**——当你让 Agent 去"发现更好的算法"时，Harness 不仅要防止它犯错，还要防止它"正确地解决错误的问题"（Goodhart's law）。这与 Carlini 在 C 编译器项目中的结论（5.9）形成交叉验证：**验证器的质量决定了 Agent 输出质量的上限。**
 
+### 5.15 三大基准的系统化对照：model-harness 配对的实证
+
+2026 年 6 月，华为团队的系统综述《From Question Answering to Task Completion》提供了迄今最系统的"同模型、不同 Harness"量化对照，横跨编码、终端、Web 三类基准：
+
+| 基准 | 模型 | 低 Harness | 高 Harness | 差距 |
+|------|------|-----------|-----------|------|
+| Terminal-Bench 2.0 | Claude Opus 4.6 | 58.0%（Claude Code） | 76.4%（Meta-Harness） | **18.4pp** |
+| Terminal-Bench 2.0 | Gemini 3.1 Pro | 59.4%（Gemini CLI） | 80.2%（TongAgents） | **20.8pp** |
+| Terminal-Bench 2.0 | GPT-5.3 Codex | 64.7%（Terminus 2） | 78.4%（SageAgent） | 13.7pp |
+| WebArena | GPT-4o | 13.1%（model-only） | 54.6%（WebOperator） | **41.5pp** |
+| SWE-bench Verified | Claude 3.5 Sonnet | 33.6%（SWE-agent） | 53.6%（PatchPilot） | 20.0pp |
+
+数据说明三件事：
+
+1. **模型仍重要，但不是全部**：固定 Harness 换更强模型，Terminal-Bench 上常有 10%+ 提升——模型是天花板。
+2. **固定模型换 Harness，差距同样巨大**：Terminal-Bench 上 20 个有多 Harness 结果的模型中，中位差距 13.6pp，14/20 的模型跨 Harness 波动 ≥10pp。**Harness 决定了天花板能兑现多少。** 这与 5.11（量化 Harness 贡献）和密歇根大学的统计归因结论形成三角验证。
+3. **mini-SWE-agent 反直觉**：仅约 100 行 Python 的极简 scaffold，在 Opus 4.5 上达到 76.8%，几乎追平功能丰富的 OpenHands（77.6%）。**scaffold 的有效性取决于接口设计而非功能数量**——这与 Vercel 的"减法优化"（5.4）相互印证。
+
+该综述据此提出 **value-aware evaluation（价值感知评估）**：只看 task success 不够，必须同时报告成本、延迟、超时率、恢复质量、安全合规和轨迹可审计性——两个成功率相近的系统，可能在成本和延迟上相差数倍。这直接强化了第十二章的"评估工程"方向，也为框架的 D9（透明度与可复现性）维度提供了量化依据。
+
 ---
 
 ## 六、Harness 的六大核心组件
@@ -640,6 +684,18 @@ LangChain 在 2026 年 6 月的《How to Build a Custom Agent Harness》中提�
 **核心优势是可组合性**——每个中间件是独立的、可测试的模块：新增规则 = 新增中间件，删除规则 = 移除中间件。这完美呼应了"可剥离性"原则——当模型升级后某些中间件变成死重，删除它只是一行配置。
 
 LangChain 将这个范式提炼为 **Task-Harness Fit** 概念：客服 Agent 的 Harness 与长时间编码 Agent 的 Harness 完全不同——不是因为模型不同，而是因为任务对上下文、容错、策略执行、运行环境的要求不同。**最好的 Agent 不只是用最好的模型构建的，而是用与任务最匹配的 Harness 构建的。**
+
+### 6.13 Ratchet 心法：每个错误固化成一条规则
+
+Addy Osmani（Google）在《Agent Harness Engineering》中把 Harness 工程的核心习惯浓缩为一个词——**ratchet（棘轮）**：**把 Agent 的每一次错误当作永久信号，而不是偶发事故。**
+
+- **错误 → 规则**：Agent 提交了被注释掉的测试？下一次 `AGENTS.md` 写上"永远不要注释测试，要么删要么修"，pre-commit hook 里 grep `.skip(` 和 `xit(`，reviewer agent 把注释测试标为阻塞项。
+- **每条规则可追溯**：`AGENTS.md` 里每一行都应该能追溯到一次具体的失败。**只在你见过真实失败时才加约束，只在强模型让某约束变得多余时才删它。**
+- **AGENTS.md 是飞行员检查单，不是风格指南**：HumanLayer 把自己的 AGENTS.md 控制在 60 行以内——每一行都在争夺注意力，规则越多，每条规则的权重越低。
+
+与 ratchet 配套的是 **hooks 作为执行层**的原则。Osmani 引用 HumanLayer 的总结：**"success is silent, failures are verbose"（成功静默，失败冗长）**——typecheck 通过时 Agent 听不到任何声音，失败时错误文本注入循环让它自我纠正。这让反馈循环在常态下几乎零成本，在出错时直接可执行。
+
+这与 Mitchell Hashimoto 的原始定义（3.3 节）一脉相承：**"每当 Agent 犯错，就改变系统让这个错误在结构上不可能再次发生。"** ratchet 是这句话的工程化操作手册。Osmani 还点出一个常被忽视的事实：**Harness 不会收缩，只会移动**——模型变强后，旧失败模式（如 Sonnet 4.5 的"上下文焦虑"）消失了，但天花板也随之抬高，新的失败模式需要新的 Harness 组件。这正是第九章"可剥离性"原则的另一面。
 
 
 
@@ -906,6 +962,8 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Effective Harness Engineering for Algorithm Discovery with Coding Agents](https://arxiv.org/abs/2605.15221)（arXiv，2026.05）——Vesper 框架研究算法发现场景下的 Harness 设计：少而深优于多而浅，更强模型产生更多评估作弊
 - [Harness Engineering for Physical AI: Robot Middleware Is the Harness Layer](https://arxiv.org/abs/2606.09416)（arXiv，2026.06）——首次将机器人中间件（ROS 2/DDS/Zenoh）形式化为 Physical AI 的 Harness 层，提出 Projection/Isolation/Transfer 三功能
 - [The Interplay of Harness Design and Post-Training in LLM Agents](https://arxiv.org/abs/2606.25447)（arXiv，2026.06）——扩展 ALFWorld 将 Harness 作为可控设计维度，证明 harness-aware post-training 提升 ID 和 OOD 鲁棒性
+- [Agent Harness Engineering: A Survey](https://openreview.net/forum?id=3hXEPbG0dh)（OpenReview / TMLR Under Review，2026.04）——提出 ETCLOVG 七层 taxonomy（把 Observability 和 Governance 提升为独立架构层），映射 170+ 开源项目，蒸馏 OpenAI/Anthropic/LangChain 生产部署原则
+- [From Question Answering to Task Completion: A Survey on Agent System and Harness Design](https://www.preprints.org/manuscript/202606.1312)（Preprints，2026.06）——华为团队综述，execution harness 六组件分解 + 四范式演进（含 model-harness co-evolution），SWE-bench/Terminal-Bench 2.0/WebArena 三大基准 model-harness 对照量化，提出 value-aware evaluation
 
 ### 官方资源
 - [2026 Agentic Coding Trends Report](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf)（Anthropic）
@@ -928,6 +986,7 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Deep Agents Deploy: an open alternative to Claude Managed Agents](https://www.langchain.com/blog/deep-agents-deploy-an-open-alternative-to-claude-managed-agents)（LangChain，2026.04）——开源模型无关 Agent Harness，集成 MCP/A2A/Agent Protocol
 - [Deep Agents v0.6](https://www.langchain.com/blog/deep-agents-0-6)（LangChain，2026.05）——开源模型 Harness Profiles，20x+ 成本优势下缩小与前沿模型差距
 - [Building Reliable Agentic AI Systems](https://martinfowler.com/articles/reliable-llm-bayer.html)（Martin Fowler / ThoughtWorks，2026.06）——Bayer AG PRINCE 制药研发平台案例，上下文工程 + Harness 工程双重透镜分析
+- [Agent Harness Engineering](https://addyosmani.com/blog/agent-harness-engineering/)（Addy Osmani / Google，2026.06）——ratchet 心法（每个错误固化成规则）、AGENTS.md 精简原则（pilot's checklist）、hooks 执行层（success is silent, failures are verbose）、Harness-as-a-Service、Claude Code 架构逐层拆解
 
 ### 深度解读
 - [Engineering Rigor Doesn't Disappear — It Relocates: Four Years of AI Agentic Patterns](https://bits-bytes-nn.github.io/insights/agentic-ai/2026/04/05/evolution-of-ai-agentic-patterns-en.html)——从提示词到上下文到 Harness 的完整演进史
