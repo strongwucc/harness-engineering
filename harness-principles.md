@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.7
-**更新日期**: 2026-06-29
+**版本**: v1.8
+**更新日期**: 2026-07-06
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -63,6 +63,9 @@
 | [Agent Harness Engineering: A Survey](https://openreview.net/forum?id=3hXEPbG0dh) | Li et al. / TMLR（2026.04） | ETCLOVG 七层 taxonomy，Observability/Governance 独立化，映射 170+ 开源项目 |
 | [From Question Answering to Task Completion](https://www.preprints.org/manuscript/202606.1312) | 华为 Noah's Ark Lab（2026.06） | execution harness 六组件 + 四范式演进，三大基准 model-harness 对照量化，value-aware evaluation |
 | [Agent Harness Engineering](https://addyosmani.com/blog/agent-harness-engineering/) | Addy Osmani / Google（2026.06） | ratchet 心法、AGENTS.md 精简、hooks 执行层（success is silent, failures are verbose）、Harness-as-a-Service |
+| [MUSE: A Unified Agentic Harness for MLLMs](https://arxiv.org/abs/2606.03005) | 多机构联合（2026.06） | 多模态统一结构化执行 Harness，model-agnostic 可组合模块包裹现成 MLLM，证明 scaffold 优化逻辑跨模态成立 |
+| [Is Grep All You Need?](https://arxiv.org/abs/2605.15184) | PwC（2026.05） | 检索场景实证：决定 agentic search 质量的是 harness（工具暴露/结果格式化/迭代循环）而非检索方法，为 Binding Constraint Thesis 提供交叉验证 |
+| [The Bitter Lesson of Agent Harnesses](https://browser-use.com/posts/bitter-lesson-agent-harnesses) | Gregor Zunic / browser-use（2026.04） | helpers 也是抽象的极简主义心法，CDP 直连 + self-heal loop 让 agent 自补缺失工具；被 AHE 与 Binding Constraint Thesis 引用 |
 
 ---
 
@@ -312,7 +315,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D8：Agent 工作流编排
 
-> 来源：综合（Anthropic 三 Agent + LangChain 自验证 + Vercel 减法优化 + Loop Engineering 五大构建块 + Structured Graph Harness + LOOP Skill Engine）
+> 来源：综合（Anthropic 三 Agent + LangChain 自验证 + Vercel 减法优化 + Loop Engineering 五大构建块 + Structured Graph Harness + LOOP Skill Engine + Bitter Lesson 极简主义）
 > 原则：最好的 Harness 改进往往来自"做更少"。2026 年 6 月，Loop Engineering 将工作流编排从"手动触发"推进到"自动调度 + 自驱动"——Harness 装上时钟。
 
 **检查项**：
@@ -329,11 +332,12 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 跨 context window 的长任务有结构化状态交接（结构化进度文件 + git 回滚，非依赖模型记忆——参考 Effective Harnesses for Long-Running Agents）
 - [ ] 有模型专属 Harness 配置机制（不同模型家族有不同提示词/工具/中间件配置，非"一套配置适配所有模型"——参考 Tuning Deep Agents 的 Harness Profiles）
 - [ ] Harness 扩展通过可组合中间件实现（每条规则是独立模块，新增/删除一行配置即可——参考 How to Build a Custom Agent Harness 的中间件式扩展范式）
+- [ ] 缺失能力有 agent 自补机制（agent 遇到缺失工具时能自行编写 helper 而非阻塞报错，参考 Bitter Lesson 的 self-heal loop——与 ratchet 的"加规则"形成"减 helper"对照）
 
 **评估标准**：
 - 1 星：无工作流，Agent 自由发挥
 - 3 星：有基本流程但缺少验证/恢复环节，无自动化调度
-- 5 星：完整工作流 + 验证 + 恢复 + 工具精简 + 多 Agent 协作 + 自动化调度 + 跨会话状态 + 目标驱动 + 高频任务确定性回放 + 模型专属配置 + 可组合中间件
+- 5 星：完整工作流 + 验证 + 恢复 + 工具精简 + 多 Agent 协作 + 自动化调度 + 跨会话状态 + 目标驱动 + 高频任务确定性回放 + 模型专属配置 + 可组合中间件 + agent 自补缺失工具
 
 ---
 
@@ -522,3 +526,4 @@ Level X（一句话总结）
 | 2026-06-22 | v1.5 | 补充 7 个权威来源（共 37 个）：Effective harnesses for long-running agents、Demystifying evals、When AI builds itself、Better Harness（LangChain）、How Good Is Your Harness?、Memory-Aware SE Agents、Survey on Agent Skills；修复 Anthropic harness-design 失效链接（→ harness-design-long-running-apps）；D2 增加情景/时序记忆检查项、D6 增加 capability/regression evals 与 holdout set 两项检查项、D8 增加跨 context window 状态交接检查项、D9 来源补充 How Good Is Your Harness 统计归因证据；新增反模式 11（审查瓶颈/Amdahl 陷阱） |
 | 2026-06-26 | v1.6 | 补充 11 个权威来源（共 48 个）：Harness-MU、Categorical Architecture、Algorithm Discovery Harness、Physical AI Harness、Post-Training Interplay（5 篇学术论文）；Tuning Deep Agents (Harness Profiles)、Custom Agent Harness (Middleware)、Deep Agents Deploy、Deep Agents v0.6、Bayer AG PRINCE（6 篇行业文章）；D5 安全防护新增多用户治理检查项；D8 工作流编排新增模型专属 Harness 配置 + 可组合中间件两项检查项；D5/D8 五星标准同步扩展 |
 | 2026-06-29 | v1.7 | 补充 3 个权威来源（共 51 个）：ETCLOVG Survey（OpenReview/TMLR）、QA→Task Completion Survey（华为）、Osmani Agent Harness Engineering 博客；D1.1 新增 AGENTS.md 精简 + ratchet 检查项、D4 新增错误→规则 ratchet 检查项、D9.2 新增 value-aware evaluation 检查项 |
+| 2026-07-06 | v1.8 | 补充 3 个权威来源（共 54 个）：MUSE 多模态统一 Harness（arXiv）、Is Grep All You Need 检索场景实证（PwC）、Bitter Lesson of Agent Harnesses 极简主义心法（browser-use）；D8 工作流编排新增 agent 自补缺失工具（self-heal loop）检查项 |

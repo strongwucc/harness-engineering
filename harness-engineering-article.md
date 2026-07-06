@@ -511,6 +511,8 @@ LangChain 对 1,300+ 专业人士的调查揭示了 Agent 工程在 2026 年的�
 
 这一结论在 2026 年 5 月得到了更严格的统计学确认。密歇根大学的论文《How Good Is Your Harness?》首次用统计归因方法量化了 Harness 与 LLM 各自的贡献比例，在 Terminal-Bench 2.0 上得出一个惊人结论：**切换到最佳 Harness 带来的增益，约等于切换到最佳 LLM 带来的增益**——两者影响相当，且存在交互（没有"放之四海皆准"的 Harness）。这把"模型是商品，Harness 是护城河"从口号变成了可量化、可复现的实证命题。
 
+这一结论在同月被 PwC 团队的《Is Grep All You Need? How Agent Harnesses Reshape Agentic Search》从**检索**这一全新场景独立验证。论文比较了 agentic search 中 grep（命令行正则）与向量语义检索的效果，反直觉地发现 **grep 在多数 harness-模型组合中胜出**——但真正的发现是：**决定检索质量的不是检索方法，而是 agent harness**（工具暴露方式、结果格式化、迭代循环）。同一模型同一语料，换一套 harness，grep 与向量检索的胜负可以完全反转。"令人惊讶的不是 grep 强大，而是 agent 设计让它强大。"这为 Binding Constraint Thesis（十二章）和密歇根大学的统计归因提供了检索场景下的第三块交叉验证。
+
 ### 5.12 Anthropic 内部数据：当 Claude 写了 80% 的代码
 
 2026 年 4 月，Anthropic 在《When AI builds itself》中披露了一组内部生产数据，为"Harness 是护城河"提供了来自模型厂商自身的一手证据：
@@ -562,6 +564,17 @@ LangChain 对 1,300+ 专业人士的调查揭示了 Agent 工程在 2026 年的�
 3. **mini-SWE-agent 反直觉**：仅约 100 行 Python 的极简 scaffold，在 Opus 4.5 上达到 76.8%，几乎追平功能丰富的 OpenHands（77.6%）。**scaffold 的有效性取决于接口设计而非功能数量**——这与 Vercel 的"减法优化"（5.4）相互印证。
 
 该综述据此提出 **value-aware evaluation（价值感知评估）**：只看 task success 不够，必须同时报告成本、延迟、超时率、恢复质量、安全合规和轨迹可审计性——两个成功率相近的系统，可能在成本和延迟上相差数倍。这直接强化了第十二章的"评估工程"方向，也为框架的 D9（透明度与可复现性）维度提供了量化依据。
+
+### 5.16 MUSE：多模态 LLM 的统一 Harness
+
+2026 年 6 月，论文《MUSE: A Unified Agentic Harness for MLLMs》将 Harness 工程的版图从文本 Agent 正式扩展到**多模态 LLM（MLLM）**。核心论点：**多模态 Agent 的可靠性瓶颈同样不在模型，而在执行 scaffold**——通过一个 model-agnostic 的"多模态统一结构化执行 Harness"（Multimodal Unified Structured Execution harness），用可组合模块包裹任意现成 MLLM，即可在不改动模型权重的前提下显著提升任务表现。
+
+MUSE 的贡献是双重的：
+
+- **范式扩展**：此前的 Harness 实证（LangChain 的纯 Harness 优化、AHE 的自动进化、AutoHarness 的代码合成）集中在文本/编码场景。MUSE 证明同样的"scaffold 优化而非模型优化"逻辑在视觉、图像、视频等多模态任务上同样成立——**Harness 是跨模态的护城河**。
+- **model-agnostic**：与 Scaling Managed Agents（5.10）的"可剥离性"原则一脉相承，MUSE 的 harness 不绑定特定 MLLM，任何现成模型都能套用。
+
+这与具身 Harness（十二章）共同指向同一个方向：Harness 工程的设计原则（约束、验证、恢复、可剥离）正从软件工程 Agent，向多模态、物理世界等更高 stakes 的领域外扩——模型在变，模态在变，"模型之外的一切"这个论断不变。
 
 ---
 
@@ -697,7 +710,21 @@ Addy Osmani（Google）在《Agent Harness Engineering》中把 Harness 工程�
 
 这与 Mitchell Hashimoto 的原始定义（3.3 节）一脉相承：**"每当 Agent 犯错，就改变系统让这个错误在结构上不可能再次发生。"** ratchet 是这句话的工程化操作手册。Osmani 还点出一个常被忽视的事实：**Harness 不会收缩，只会移动**——模型变强后，旧失败模式（如 Sonnet 4.5 的"上下文焦虑"）消失了，但天花板也随之抬高，新的失败模式需要新的 Harness 组件。这正是第九章"可剥离性"原则的另一面。
 
+### 6.14 Harness 极简主义：helpers 也是抽象
 
+Gregor Zunic（browser-use 创始人）在《The Bitter Lesson of Agent Harnesses》（2026.04，被 AHE 和 Binding Constraint Thesis 两篇论文正式引用）中把 Vercel 的"减法优化"（5.4）推向了极致——**不仅精简工具集，连每一个 `click()`、`type()`、`scroll()` helper 都是应该删除的抽象**。论点致敬 Rich Sutton 的 Bitter Lesson：模型已经在数百万 token 的底层 API 上训练过，你写的高层封装是 RL 训练过的模型必须绕过的约束。
+
+browser-use 团队的实践：从数千行 element extractor / DOM indexer / click wrapper，转向**直接把 CDP（Chrome DevTools Protocol）交给模型**——CDP 是模型在训练数据里见过一万次的接口（`Page.navigate`、`DOM.querySelector`、`Runtime.evaluate`）。整个 harness 收缩到约 **600 行**（`run.py` + `helpers.py` + `daemon.py` + `SKILL.md`）。
+
+由此衍生出 **self-heal loop**：agent 缺某个工具（如 `upload_file()`）时不报错阻塞，而是自己 grep `helpers.py`、补上缺失的函数、重跑；碰到 10MB 的 CDP websocket payload 限制，自己切换成分块上传。团队"在 git diff 里才发现 agent 偷偷写了 upload_file"。
+
+这与 6.13 的 ratchet 心法形成有趣对照——**ratchet 是加法（每次错误固化成一条新规则），Bitter Lesson 是减法（每个 helper 都是可以让 agent 自己写的抽象）**。两者的交汇点是 Self-Harness（3.5）：当 agent 能自主编辑自身 harness，预先穷尽所有工具和规则既不可能也无必要。最好的 harness 可能是最薄的那一层——给模型它训练过的底层接口，加一个让它自己改的权限，然后退开。
+
+---
+
+## 七、Agent 安全防护
+
+### 7.1 致命三要素
 
 Simon Willison（Django 框架联合作者）提出了"致命三要素"框架。当 Agent 同时具备以下三个条件时，安全事件不是"会不会"的问题，而是"什么时候"的问题：
 
@@ -964,6 +991,8 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [The Interplay of Harness Design and Post-Training in LLM Agents](https://arxiv.org/abs/2606.25447)（arXiv，2026.06）——扩展 ALFWorld 将 Harness 作为可控设计维度，证明 harness-aware post-training 提升 ID 和 OOD 鲁棒性
 - [Agent Harness Engineering: A Survey](https://openreview.net/forum?id=3hXEPbG0dh)（OpenReview / TMLR Under Review，2026.04）——提出 ETCLOVG 七层 taxonomy（把 Observability 和 Governance 提升为独立架构层），映射 170+ 开源项目，蒸馏 OpenAI/Anthropic/LangChain 生产部署原则
 - [From Question Answering to Task Completion: A Survey on Agent System and Harness Design](https://www.preprints.org/manuscript/202606.1312)（Preprints，2026.06）——华为团队综述，execution harness 六组件分解 + 四范式演进（含 model-harness co-evolution），SWE-bench/Terminal-Bench 2.0/WebArena 三大基准 model-harness 对照量化，提出 value-aware evaluation
+- [MUSE: A Unified Agentic Harness for MLLMs](https://arxiv.org/abs/2606.03005)（arXiv，2026.06）——多模态统一结构化执行 Harness（Multimodal Unified Structured Execution），model-agnostic 的可组合模块包裹任意现成 MLLM，证明"scaffold 优化而非模型优化"逻辑在视觉/图像/视频任务上同样成立
+- [Is Grep All You Need? How Agent Harnesses Reshape Agentic Search](https://arxiv.org/abs/2605.15184)（arXiv，2026.05）——PwC 实证：决定 agentic search 质量的是 harness（工具暴露/结果格式化/迭代循环）而非检索方法（grep vs 向量检索），为 Binding Constraint Thesis 提供检索场景交叉验证
 
 ### 官方资源
 - [2026 Agentic Coding Trends Report](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf)（Anthropic）
@@ -994,3 +1023,4 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [2025 Was Agents. 2026 Is Agent Harnesses](https://aakashgupta.medium.com/2025-was-agents-2026-is-agent-harnesses-heres-why-that-changes-everything-073e9877655e)——Manus/LangChain/Vercel 的 Harness 实战案例
 - [AI Agents in 2026: Tools, Memory, Evals, and Guardrails](https://andriifurmanets.com/blogs/ai-agents-2026-practical-architecture-tools-memory-evals-guardrails)——生产 Agent 的技术蓝图
 - [Harness Engineering: What Every AI Engineer Needs to Know in 2026](https://ai.gopubby.com/harness-engineering-what-every-ai-engineer-needs-to-know-in-2026-0ab649e5686a)——三大阵营、三种架构的比较分析
+- [The Bitter Lesson of Agent Harnesses](https://browser-use.com/posts/bitter-lesson-agent-harnesses)（Gregor Zunic / browser-use，2026.04）——致敬 Sutton 经典：helpers 也是抽象，删掉它们让 agent 写自己需要的；CDP 直连 + self-heal loop 的 ~600 行极简 harness 实践，被 AHE 与 Binding Constraint Thesis 两篇论文正式引用
