@@ -1,274 +1,443 @@
-# Harness 工程实施指南
+# Harness 工程实施指南（Claude Code 落地手册）
 
-> 这份指南告诉你**具体怎么配**。想理解"为什么这么配"，先看 `harness-engineering-article.md`。
-> 想评估现有项目做到什么程度了，看 `harness-principles.md`。
-
-三个文件的关系：**文章讲 Why → 框架讲 Measure → 指南讲 How。**
-
----
+> 这份指南告诉你**在 Claude Code 里具体配什么、写在哪个文件**。想理解"为什么这么配"看 `harness-engineering-article.md`；想评估现有项目做到什么程度看 `harness-principles.md`。
+> 三个文件的关系：**文章讲 Why → 框架讲 Measure → 本指南讲 How（Claude Code 版）。**
 
 ## 核心思想
 
-Harness Engineering 说到底是这么一件事：
+模型是发动机，你基本换不了；但你能决定它装在哪辆车上、刹车怎么设计、仪表盘显示什么。所有配置围绕一个目标：**让 Agent 产出的东西靠谱，犯错了能自己拉回来。**
 
-**模型是发动机，你没得换。但你可以决定它装在哪辆车上、方向盘什么样、刹车怎么设计。**
+这是迭代过程不是一次性项目——**别一上来就做满四层**。第一层配好跑几天，碰到具体问题再加第二层。Mitchell Hashimoto 那句话就是纪律：*"每次 Agent 犯错，就改变系统让这个错误在结构上不可能再发生。"*
 
-所有配置围绕同一个目标：让 Agent 产出的东西靠谱，犯错了能自己拉回来。
+---
 
-下面按成熟度分层展开。**别试图一次性把四层全做出来。** 先从第一层开始，跑几天，碰到什么问题再加第二层。Mitchell Hashimoto 给的定义就是这个意思——"每次 Agent 犯错，就改变系统让这个错误在结构上不可能再发生"——是个迭代过程，不是一次性项目。
+## Claude Code Harness 原语速查
+
+动手前先建立心智地图：Claude Code 的 Harness 由这些零件组成。后续每一层就是把其中几个零件配起来。
+
+| 原语 | 配在哪 | 常驻/按需 | 一句话用途 | 详见 |
+|------|--------|----------|-----------|------|
+| **CLAUDE.md** | 项目根 / 子目录 | 常驻上下文 | 项目规则、技术栈、禁令——每次会话自动加载 | §1, §3 |
+| **Permissions** | `settings.json` 的 `permissions` | 常驻 | allow/ask/deny 控制工具与路径权限 | §2, §5, §10 |
+| **Hooks** | `settings.json` 的 `hooks` | 事件触发 | 在工具调用前后/会话节点跑确定性脚本（=中间件） | §7, 附录 A |
+| **Subagents** | `.claude/agents/*.md` | 按需调用 | 独立上下文+独立工具集的专用 Agent（=maker/checker） | §6 |
+| **Skills** | `.claude/skills/<name>/SKILL.md` | 按需调用 | 可复用的流程能力包，按需进上下文 | §3, §9 |
+| **Slash commands** | `.claude/commands/*.md` | 手动触发 | 一段可参数化的 prompt 模板 | §6 |
+| **MCP servers** | `.mcp.json` | 常驻连接 | 让 Agent 读 GitHub/数据库/飞书等外部系统 | §4(Loop) |
+| **statusline** | `settings.json` 的 `statusLine` | 常驻显示 | 自定义状态栏（可观测性的一个出口） | §10 |
+
+> **两个最容易混的概念**：`CLAUDE.md` 是**常驻上下文**（每次都在），`Skill` 是**按需能力包**（用到才加载）。把流程性内容写成 Skill，把"永远适用的规则"写进 CLAUDE.md——别搞反。
 
 ---
 
 ## 第一层：个人项目（1-2 小时）
 
-要解决的问题：Agent 不知道你的项目长什么样。
+要解决的问题：**Agent 不知道你的项目长什么样。**
 
-### 1. 项目级指南文件
+### 1. CLAUDE.md：常驻上下文
 
-在项目根目录放一个 `CLAUDE.md` 或 `AGENTS.md`，100 行以内。写清楚四件事：
+项目根放一个 `CLAUDE.md`（或 `AGENTS.md`），控制在 100 行内，写清四件事。这是投入产出比最高的配置——一个下午写好，以后每次会话自动加载。
 
-**技术栈**：语言、框架、构建工具。Agent 不需要翻遍 `package.json` 自己猜。
-
-```
+```markdown
 # CLAUDE.md
-- 这个项目用 TypeScript + React 18 + Vite
-- 包管理用 pnpm，不要用 npm
-- 测试用 Vitest
+
+## 技术栈
+- Laravel 11 + PHP 8.3（后端），Vue 3 + TypeScript + Vite（前端）
+- 包管理：后端 composer，前端 pnpm（不要用 npm）
+- 测试：后端 Pest，前端 Vitest
+
+## 编码约定
+- 缩进 2 空格，字符串用单引号
+- PHP 类用 PascalCase，方法 camelCase；Vue 组件 PascalCase
+
+## 目录结构
+- app/Http/Controllers/ 只做参数校验和调用 Service
+- app/Services/ 业务逻辑
+- app/Models/ Eloquent 模型，不写业务逻辑
+- resources/js/components/ 通用 Vue 组件
+
+## 禁止事项
+- 不要引入新的第三方依赖
+- 不要修改数据库 migration（新建 migration）
+- 不要删除已有代码，除非我明确要求
 ```
 
-**编码约定**：缩进、引号、命名——不写它就随缘。
+**心法是 ratchet（棘轮）**：每条规则都要能追溯到一次真实的 Agent 失败。Agent 把测试注释掉了？加一条"不许注释测试"。它绕过了 Service 层？加一条"Controller 不能直接调 Model"。**只在你见过真实失败时才加规则**——凭空想象的规则是噪音，会稀释真正重要的规则。把 CLAUDE.md 当飞行员的检查单（pilot's checklist，几十行），不是风格手册。
 
+### 2. 自动化检查 + 放行测试命令
+
+光写文档不够——Agent 看了但不一定遵守。要加**不会出错的机械性检查**，并让 Agent 自己能跑测试。
+
+**第一步：把检查和测试命令放进 permissions 的 allow**，让 Agent 不用每次申请就能跑（`.claude/settings.json` 或 `~/.claude/settings.json`）：
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan test*)",
+      "Bash(./vendor/bin/pint*)",
+      "Bash(./vendor/bin/phpstan*)",
+      "Bash(pnpm vitest*)",
+      "Bash(pnpm eslint*)",
+      "Bash(pnpm typecheck*)",
+      "Bash(git diff*)",
+      "Bash(git log*)"
+    ]
+  }
+}
 ```
-- 缩进 2 空格
-- 字符串用单引号
-- 组件文件用 PascalCase，工具函数用 camelCase
-```
 
-**目录结构**：哪个目录放什么。Agent 经常自己发明奇怪的路径，因为没人告诉它。
-
-```
-- src/components/ 通用组件
-- src/pages/ 页面入口
-- src/hooks/ 自定义 hooks
-- src/utils/ 工具函数
-```
-
-**禁止事项**：比正面指令更管用。直接告诉它别干什么。
-
-```
-- 不要引入新的依赖包
-- 不要修改数据库 schema
-- 不要删除已有代码，除非明确要求
-```
-
-指南文件是投入产出比最高的配置。一个下午写好，以后每次会话自动加载，零维护成本。
-
-**写指南的心法是 ratchet（棘轮）**：每条规则都要能追溯到一次真实的 Agent 失败。Agent 把测试注释掉了？加一条"不许注释测试"。它绕过了 Service 层？加一条"Controller 不能直接调 Model"。**只在你见过真实失败时才加规则**——凭空想象的规则是噪音，会稀释真正重要的规则。把指南当成飞行员的检查单（pilot's checklist，几十行就够），而不是一本风格手册。
-
-### 2. 自动化检查
-
-光写文档不够——Agent 看了但不一定严格遵守。需要加**不会出错的机械性检查**。
-
-**Linter**：ESLint、Pint、Prettier 随便哪个，配好规则挂到 pre-commit hook。
-
-**类型检查**：TypeScript、PHPStan、Psalm。模型天然不擅长类型一致性，这层校验能抓大量低级错误。
-
-**测试命令让 Agent 自己能跑**：Agent 写完代码自己跑 `npm test`，拿到错误信息自己修。你不是检查员，你是设计检查规则的。这就是 Mitchell Hashimoto 那句话的实操版："每次 Agent 犯错，改变系统让它不可能再犯"。
-
-设计这些检查时记住一条原则：**success is silent, failures are verbose（成功静默，失败冗长）**。检查通过时 Agent 不需要听到任何声音；检查失败时把错误原文塞回循环，让它自己改。这样反馈在常态下零成本，出错时直接可执行。
-
-配置示例（`.claude/settings.json` 的 hooks 部分）：
+**第二步：配 Hook，让 Agent 每次改完文件自动跑 lint**（见 §7 的完整 Hook 说明）。最小可用版：
 
 ```json
 {
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "npx eslint --fix ${CLAUDE_TOOL_OUTPUT_FILE_PATH}"
-          }
-        ]
+        "matcher": "Edit|Write",
+        "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/lint.sh" }]
       }
     ]
   }
 }
 ```
 
+```bash
+#!/bin/bash
+# .claude/hooks/lint.sh —— 按扩展名自动格式化改动的文件
+# hook 的 stdin 是一段 JSON（含 tool_input.file_path），jq 直接读
+FILE=$(jq -r '.tool_input.file_path // empty')
+[ -z "$FILE" ] && exit 0
+
+case "$FILE" in
+  *.php)            ./vendor/bin/pint "$FILE" ;;
+  *.ts|*.vue|*.js)  npx eslint --fix "$FILE" ;;
+esac
+
+exit 0   # 退出码 0 = 不阻塞；auto-fix 已就地改好文件
+# 若要把"剩余报错"回灌给 Agent 让它继续修，用 exit 2 + stderr（见附录 A）
+```
+
+设计检查时记住一条原则：**success is silent, failures are verbose（成功静默，失败冗长）**。检查通过时 Agent 不需要听到任何声音；检查失败时把错误原文塞回循环让它自己改。常态零成本，出错直接可执行。
+
 ---
 
 ## 第二层：团队项目（1-2 天）
 
-要解决的问题：多个人 + 多个 Agent 同时干活，互相不踩脚。
+要解决的问题：**多个人 + 多个 Agent 同时干活，互相不踩脚。**
 
-### 3. 分层指南 + 渐进式披露
+### 3. 分层 CLAUDE.md + 任务模板（Select 策略）
 
-`CLAUDE.md` 不能无限膨胀。一个 5000 行的指南，Agent 读到后面忘了前面。
-
-**项目根目录**放总览，100 行以内：整体架构、技术栈、核心约定。
-
-**各子系统**放各自的 `CLAUDE.md`：
+CLAUDE.md 不能无限膨胀——一个 5000 行的指南，Agent 读到后面忘了前面。给 Agent **一张地图**而非一本千页手册：根目录放总览（100 行内），各子系统放各自的 CLAUDE.md，Claude Code 进入子目录工作时会自动加载对应的。
 
 ```
-src/
-├── frontend/
-│   └── CLAUDE.md    ← 前端约定
-├── backend/
-│   └── CLAUDE.md    ← 后端约定
-└── tests/
-    └── CLAUDE.md    ← 测试规范
+project/
+├── CLAUDE.md                 # 总览：整体架构、技术栈、核心约定
+├── app/Http/CLAUDE.md        # 后端 Controller/Request 约定
+├── app/Services/CLAUDE.md    # Service 层模式 + 事务边界
+├── resources/js/CLAUDE.md    # 前端组件规范 + 状态管理
+└── tests/CLAUDE.md           # 测试命名、mock 边界
 ```
 
-**常见任务模板**：修 bug 的流程、加新功能的流程写下来。Agent 照着走。
+**常见任务写成 Skill 或 command**（不是写进 CLAUDE.md）。例如修 bug 的流程、加新功能的流程——这种"按需调用的步骤"放进 `.claude/commands/fix-bug.md`，Agent 执行该任务时才进上下文，不污染常驻 CLAUDE.md。
 
-这里的思路是：给 Agent **一张地图**，而不是一本 1000 页的手册。让它自己去找需要的部分。这就是上下文工程里的 "Select" 策略。
+### 4. CI 强制架构约束
 
-### 4. CI 强制执行的架构约束
+团队级架构规则光写文档不够，必须上**机械性强制**。分层规则写成 CI 检查，Agent 拿到报错能自己改：
 
-到了团队级，架构规则光写在文档里已经不够了。必须上机械性强制。
+- **JavaScript/TypeScript**：`dependency-cruiser` 检查依赖方向（UI 层不能导数据库层）
+- **PHP/Laravel**：PHPStan（+ Larastan）自定义规则 + `ArchTest`（如 `ajthinking/architest`）断言"Controller 不能直接 new Model"
+- **通用**：自定义 ESLint 规则 / PHPStan 规则，**报错信息里带上"怎么改"**
 
-**分层规则写成自动化检查**：比如"Controller 不能直接调 Model，必须走 Service 层"。用 ArchUnit（Java）、PHPStan 自定义规则（PHP）、dependency-cruiser（JavaScript）在 CI 里跑。
+```php
+// tests/Architecture/ArchitectureTest.php —— 需要 pestphp/pest-plugin-arch
+test('Controllers 不能直接依赖 Eloquent 查询构造器')
+    ->expect('App\Http\Controllers')
+    ->classes()
+    ->not->toUse('Illuminate\Database\Eloquent\Builder');
+```
 
-**依赖方向检查**：UI 层不能导入数据库层，domain 不能依赖 framework。
+### 5. 工具权限：allow / ask / deny 三档
 
-**自定义 Linter 规则**：团队特有的模式写成规则。报错信息里带上"怎么改"——Agent 拿到错误能自己修。
+Vercel 删掉 80% 工具后 Agent 反而更快更可靠——每个工具都是决策分支，多了会迷路。Claude Code 用 `permissions` 的三档控制，优先级 **deny > ask > allow**（deny 永远赢）：
 
-反直觉的一点：约束越多，Agent 产出反而越好。没边界的时候它在几万种可能性里乱撞，有边界了能快速收敛。
+```json
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(php artisan test*)",
+      "Bash(pnpm vitest*)",
+      "Read(./app/**)",
+      "Read(./resources/**)",
+      "Edit(./app/**)"
+    ],
+    "ask": [
+      "Bash(git push*)",
+      "Bash(composer require*)",
+      "Write(./composer.json)",
+      "Write(./package.json)"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Read(./.env)",
+      "Edit(./database/migrations/*)",
+      "Bash(php artisan migrate*)"
+    ]
+  }
+}
+```
 
-### 5. 工具权限按需分配
+**规则语法要点**：
+- `Bash(php artisan test*)` —— 前缀匹配，带不带参数都放行（最常用）
+- `Bash(git push:*)` —— `:*` 形式匹配 `git push` 及其子命令；`Bash(cmd *)`（空格+`*`）则要求命令必须带参数
+- `Read(./app/**)` —— gitignore 风格路径，`**` 递归
+- `mcp__github__create_issue` —— MCP 工具名用双下划线
+- `&&`/`||` 连接的复合命令，**每段都要单独匹配**才放行
 
-别给 Agent 所有工具。Vercel 删掉 80% 的工具后，Agent 反而更快更可靠。
+### 6. Maker / Checker：Subagent 分离
 
-- 修 bug 的 Agent 不需要数据库写入权限
-- 写文档的 Agent 不需要执行 shell
-- 永远不要给生产环境相关权限
+让 Agent 审查自己写的代码，跟让学生给自己卷子打分一样——永远全对。在 `.claude/agents/` 下分别定义写代码的和审查的，**审查那个只读、不写文件**：
 
-每个工具都是一个决策分支，多了 Agent 会迷路。
+```yaml
+# .claude/agents/coder.md
+---
+name: coder
+description: 编写和修改代码。实现功能或修 bug 时委派给它。
+tools: Read, Edit, Write, Bash
+model: inherit
+---
+你是编码执行者。理解需求后直接实现，遵循 CLAUDE.md 的分层约定。
+```
 
-### 6. Maker / Checker 分离
+```yaml
+# .claude/agents/reviewer.md
+---
+name: reviewer
+description: 审查代码质量和安全。代码改完后委派给它。
+tools: Read, Grep, Glob          # 注意：没有 Edit/Write → 只读
+model: sonnet
+---
+你是代码审查者。按优先级检查：1) 安全漏洞  2) 分层违规  3) 可读性。
+只报告问题，不改代码。
+```
 
-让 Agent 审查自己写的代码——跟让学生给自己的卷子打分一样，永远全对。
+调用方式：Claude 根据 `description` 自动委派，或你显式 `@reviewer`。这对应 Anthropic 的 Planner→Generator→Evaluator 架构的简化版。
 
-- **写代码的 Agent** 和 **审代码的 Agent** 不能是同一个
-- 审查 Agent 有结构化检查清单（安全、架构、代码质量）
-- 审查过了才能进主分支
-
-Anthropic 的三 Agent 架构（Planner → Generator → Evaluator）就是这个思路。最简单落地：`.claude/agents/` 下分别定义 `coder` 和 `reviewer`，reviewer 只读、不写文件。
+> **现实范例**：你本机 `.claude/agents/` 里的 `laravel-reviewer` + `vue-reviewer` + `security-auditor` + `code-quality-reviewer`，加上 `full-review` 命令编排出"四维并行审查 + 交叉验证"——就是这套模式的成熟实现，可以直接参考它的 frontmatter 写法。
 
 ---
 
 ## 第三层：生产级（1-2 周）
 
-要解决的问题：Agent 不是偶尔用，是持续跑。跑错了影响会累积。
+要解决的问题：**Agent 不是偶尔用，是持续跑。跑错了影响会累积。**
 
-### 7. 中间件层
+### 7. Hooks：中间件的 Claude Code 落地
 
-在 Agent 循环的每一步插入钩子——每条钩子是一条独立规则，加一行配置就有，删一行配置就没了。
+前面讲的"中间件"在 Claude Code 里就是 **Hooks**——在生命周期的特定点跑确定性脚本。每条 hook 是一条独立规则，加一段配置就有，删一段就没。核心事件（完整列表见附录 A）：
 
-| 钩子点 | 干什么 |
-|--------|--------|
-| 模型调用前 | 检查权限、注入上下文、复杂任务切强模型、简单任务切便宜模型 |
-| 模型输出后 | 验证格式、检测重复输出（防死循环）、触发上下文压缩 |
-| 工具调用前 | 验证参数、检查 token 预算还剩多少 |
-| 工具返回后 | 截断过长输出、写审计日志、失败重试 |
-| 会话开始/结束 | 初始化资源、保存进度文件 |
+| 事件 | 触发时机 | 能否阻断 | 典型用途 |
+|------|---------|---------|---------|
+| `SessionStart` | 会话启动/恢复 | 否 | 注入当前分支、加载记忆 |
+| `UserPromptSubmit` | 用户提交 prompt | **是** | 拦截含密钥的 prompt、注入上下文 |
+| `PreToolUse` | 工具调用前（matcher=工具名） | **是** | **权限/合规拦截、参数校验** |
+| `PostToolUse` | 工具调用后（matcher=工具名） | 否 | 自动 lint、截断过长输出、审计日志 |
+| `Stop` | Claude 响应完成 | **是** | 强制跑测试才能结束、通知 |
+| `SubagentStop` | 子 agent 完成 | **是** | subagent 产出的质量门 |
+| `PreCompact` | 上下文压缩前 | **是** | 压缩前抢救关键信息 |
 
-核心好处是**可剥离**：模型升级后，某些中间件变累赘了，删掉就是一行配置。专为旧模型写的补救逻辑，不该在新模型上继续拖着。
+**控制流协议**（关键）：hook 从 stdin 收到 JSON（含 `tool_name`/`tool_input` 等），用**退出码 + JSON stdout** 反馈：
+- 退出码 `0` + JSON stdout → 解析 JSON（可注入上下文或改决策）
+- 退出码 `2` → 阻断，stderr 作为错误展示给用户
+- 其他退出码 → 非阻塞错误，继续
 
-中间件实际干**两份活**，分开配更清楚：一份是**代码强制**（调用次数上限切断死循环、失败重试），不向模型请求任何东西；另一份是**上下文工程**（在模型出错的瞬间把正确信号递过去，比把规则全塞进系统提示词碰运气更有效）。其中有一类**只能用中间件、不能用提示词**——PII 脱敏、内容审核、HIPAA 这类"每次必触发"的合规策略。模型可能 99 次照办提示词，第 100 次漏一次就是事故。记住一句话：**你无法用提示词实现 HIPAA 合规**——这类策略必须活在钩子里，用确定性代码对输入/输出/工具返回三处都过一遍。
+**例 1：PostToolUse 自动 lint**（已在 §2 给过脚本，这里聚焦配置）——失败时把错误回灌：
 
-### 8. 模型专属配置（Harness Profiles）
+```json
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Edit|Write",
+      "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/lint.sh" }]
+    }]
+  }
+}
+```
 
-LangChain 在 2026 年 4 月发现：同一套提示词和工具，Claude Opus 上跑得好，GPT Codex 上效果平庸——反过来一样。
+**例 2：PreToolUse 硬拦危险命令**（确定性合规——提示词做不到的事）：
 
-原因不同模型有不同"口味"：
-- OpenAI Codex 喜欢 `apply_patch` / `shell_command` 这种工具名
-- Anthropic Claude 偏好不同的约定
-- 同一家族不同版本（Opus 4.6 → 4.7）也需要调整
+```bash
+#!/bin/bash
+# .claude/hooks/block-dangerous.sh
+INPUT=$(cat)
+CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-做法是按模型维护独立的配置覆盖层：
-- 提示词前缀/后缀（不同模型对指令格式敏感度不同）
-- 工具名称和选择（投其所好）
-- 中间件策略（推理越强，需要显式检查越少）
+# 阻断删根、强制推送生产、改 migration
+if echo "$CMD" | grep -qE 'rm -rf /|git push.*prod|artisan migrate'; then
+  jq -n '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:"危险操作被 Harness 拦截，需人类确认"}}'
+  exit 0   # 退出码 0 + JSON 才生效；不能用 exit 2（那是错误，不是决策）
+fi
+exit 0
+```
 
-量化结果：tau2-bench 上 +10-20 个百分点。原则很简单——**为模型适配 Harness，不是反过来。**
+这就是"**你无法用提示词实现合规**"的落地——PII 脱敏、危险命令拦截、"每次都必须触发"的策略，全部活在 hook 里，用代码保证每次必中，不托付给模型的概率判断。
 
-配 Profile 时守一条纪律：**core vs profile 切分**。每条改动要么是核心改进（换任何模型都生效），要么是 profile 配置（只服务某个模型的口味）。Profile 的作用就是隔离后者、让 core 保持干净。对每条改动追问"它能往 core 推多远"，然后诚实地推到最远处——只有 core 版本会在你换模型、换任务之后继续受益。配套的微观技巧叫 **signal placement**：同一条指令写在系统提示词、工具描述、工具返回结果里，效果可能相反。"读到整页就继续读"写进工具描述没用，原样搬进工具返回结果就生效——因为它出现在模型正在读的数据旁边。所以调 harness 时别只问"规则该说什么"，要问"规则该出现在哪里才会被读到"。
+**坑**：
+- 想阻断工具必须返回 `permissionDecision: "deny"`（退出码 0 + JSON），**不要用 exit 2**（exit 2 是"hook 出错"，不是"我决定拒绝"）
+- `async: true` 的 hook **无法控制流**（决策字段被忽略）——要拦截就别开 async
+- matcher 是**工具名**（如 `"Bash"`），不是命令内容；命令内容的判断在脚本里做
+- JSON stdout 必须是**唯一输出**，别混 `echo` 调试信息
 
-### 9. 熵管理
+### 8. 多模型配置：/switch + env + subagent.model
 
-AI 写得越多，代码库越容易乱。命名习惯分化、文档和代码脱节、死代码堆积。
+Claude Code **没有原生的"Harness Profile"概念**，多模型适配靠三个机制组合：
 
-需要一组**定期跑的清理 Agent**：
-- 文档一致性检查：读文档 → 读代码 → 报告对不上的
-- 约束违规扫描：找绕过早期检查的代码
-- 模式执行：找跟团队写法偏离的代码
-- 依赖审计：找循环依赖和不必要的大体积依赖
+**1. 全局模型映射**（`~/.claude/settings.json` 的 `env`）——把 sonnet/opus/haiku 槽位映射到你实际用的模型：
 
-**Harness 自己也会积累熵。** 模型每更新一次大版本，审查一遍 Harness 配置，把没用的剥掉。AHE（Agentic Harness Engineering）证明这件事可以让 Agent 自己做了——Weakness Mining → Proposal → Validation，全自动。
+```json
+{
+  "env": {
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.2",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.2",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air"
+  }
+}
+```
+
+**2. `/switch` skill 一键切**——写一个 `.claude/skills/switch/SKILL.md`，只改 `ANTHROPIC_*` 几个字段，不动其他配置（你本机已有）。
+
+**3. subagent 级别配模型**——把重活给强模型、轻活给便宜模型，在 agent frontmatter 里写 `model: sonnet` / `model: haiku`。
+
+**core vs profile 纪律**（保留这条，砍掉理论）：每条 harness 改动要么是**核心改进**（换任何模型都生效），要么是**模型专属**（只服务某个模型的口味，如 glm 偏好的工具命名）。模型专属的部分隔离到 `/switch` 切换的配置里，让核心 `settings.json` 保持干净——换模型时只动 profile 层。
+
+### 9. 熵管理：定期清理 + /loop
+
+AI 写得越多，代码库和 Harness 都会乱：命名分化、文档脱节、死代码堆积、为旧模型写的 hook 变成死重。需要**定期跑的清理 Agent**，用 `/loop` 或系统 cron 定时触发（§第四层）：
+
+- **文档一致性**：读 CLAUDE.md → 读代码 → 报告对不上的
+- **约束违规扫描**：找绕过 §4 架构检查的代码
+- **依赖审计**：找循环依赖和没用的大依赖
+- **Harness 自审**：模型每升一次大版本，审一遍 hooks/permissions，把没用的剥掉（AHE 证明这事能让 Agent 自己做——Weakness Mining→Proposal→Validation）
+
+清理脚本本身写成 Skill（如 `.claude/skills/harness-audit/`），`/loop` 每周触发一次。
 
 ### 10. 安全纵深
 
-Simon Willison 总结过一个框架，很好记：**Agent 最多同时拥有下面三样东西里的两个**——
+Simon Willison 的框架很好记：**Agent 最多同时拥有下面三样里的两个**——① 处理不可信输入（外部网页、用户上传）② 访问敏感系统（数据库、密钥、用户隐私）③ 能改状态（删文件、发请求、扣款）。三个都要 → 强制人类审批。
 
-1. 处理不可信输入（外部网页、用户上传、邮件）
-2. 访问敏感系统（数据库、密钥、用户隐私）
-3. 能改状态（删文件、发请求、扣款）
-
-落地做法：
-- **Policy as Code**：一个 YAML 配置写清楚"什么事需要审批"，工具调用前钩子检查
-- **生产/开发环境的 Agent 权限完全分开**
-- **凭据不进仓库**，更不进 `CLAUDE.md`
+落地（全是 §5 和 §7 的机制）：
+- **Permissions deny/ask**：`.env`、secrets/、生产 migration、`rm -rf` 全进 deny；`git push`、装依赖进 ask
+- **Policy as Code = PreToolUse hook**：§7 例 2 那种确定性拦截，不靠提示词
+- **凭据不进仓库**，更不进 CLAUDE.md——密钥只在 `env` 或运行时注入
+- **可观测性**：配 statusline 显示当前分支/token 用量/模型；PostToolUse hook 写审计日志
 
 ---
 
-## 第四层：自动化层（Loop Engineering）
+## 第四层：自动化（Loop Engineering）
 
-> 前三层没做到位之前别上这一层。没缰绳的马，装自动跑圈程序只会跑得更远更危险。
+> 前三层没做到位之前别上这层。**没缰绳的马，装自动跑圈程序只会跑得更远更危险。**
 
-前三层解决"Agent 单次干活靠谱吗"，这一层解决"Agent 能不能自己决定什么时候干活"。
+前三层解决"Agent 单次干活靠谱吗"，这一层解决"Agent 能不能自己决定什么时候干活"。六个零件，每个都对应 Claude Code 的具体命令：
 
-六个零件：
+| 零件 | Claude Code 落地 |
+|------|----------------|
+| **定时器** | `/loop 30m /fix-flaky-tests` 或系统 cron 触发 `claude -p` |
+| **工作隔离区** | `git worktree add ../task-123 feature/task-123`，每个任务独立 worktree |
+| **技能注入** | §3 的 Skill 自动按需加载；CLAUDE.md 常驻 |
+| **连接器** | MCP server（`.mcp.json`）让 Agent 读 GitHub issue / 数据库 / Slack |
+| **子 Agent 拆分** | §6 的 maker/checker 规模化：worker 修、reviewer 审、审过自动开 PR |
+| **状态持久化** | 进度写进 `PROGRESS.md`，下次从断点继续（SessionStart hook 可自动加载） |
 
-- **定时器**：每天早上自动拉 CI 日志、issue 列表。不是人手动开 Agent。Claude Code 用 `/loop` 和 cron，Codex 有内置 Automations。
-- **工作隔离区**：每个任务开独立 git worktree，Agent A 改的文件 Agent B 不会踩到。
-- **技能注入**：前面写的 `CLAUDE.md` 就是 Skill。写一次，每次触发自动加载。
-- **连接器**：MCP 协议让 Agent 能读 GitHub issue、查数据库、发 Slack 消息。
-- **子 Agent 拆分**：maker/checker 的规模化版本。一个修一个审，审过了自动开 PR。
-- **状态持久化**：Loop 跑三天，哪些做完了、哪些卡住了、哪些等人——落盘成结构化文件，下次从这儿继续。
+一个最小的 cron + `/loop` 示例（每天早 9 点处理 CI 失败）：
 
-完整流程长这样：
+```bash
+# crontab -e
+0 9 * * * cd /path/to/project && claude -p "/loop 修复昨晚 CI 失败的测试，每个开独立 worktree，修完让 reviewer agent 审，过了开 PR" >> .claude/loop.log 2>&1
+```
+
+完整流程：
 
 ```
-每天早上定时器触发
-  → 拉取 issue 列表 / CI 失败日志
-  → 每个值得处理的开独立 worktree
-  → 派 worker agent 修
-  → 派 reviewer agent 对照规范审查
+定时器触发
+  → MCP 拉 issue 列表 / CI 失败日志
+  → 每个任务 git worktree add 开独立区
+  → 派 worker subagent 修
+  → 派 reviewer subagent 对照 CLAUDE.md 审
+  → PreToolUse hook 把关危险操作
   → 通过就自动开 PR、更新工单
-  → 没通过的进 triage 等人
-  → 进度写进 state 文件，明天继续
+  → 没过的进 PROGRESS.md 等 人
+  → 明天从 PROGRESS.md 继续
 ```
 
-**你设计了一次，没有手动提示任何一个步骤。**
-
-详细内容见 `harness-engineering-article.md` 的 3.6 节。
+**你设计了一次，没有手动提示任何步骤。** Loop 的可靠性上限由底层 Harness（§1-§10）决定——验证"Loop 产出是否正确"的机制，必须比 Loop 本身先就位。
 
 ---
 
 ## 全局原则
 
-不管做到哪一层，这两个原则通用。
-
 ### 可剥离
 
-模型会升级。今天必要的中间件明天可能变死重。加一条配置很简单，删一条也应该很简单。不要为当前模型的特定缺陷写复杂补救逻辑——模型把那个缺陷修掉之后，你的补救逻辑就成了纯累赘。
+模型会升级。今天必要的 hook/中间件明天可能变死重。**加一段配置很简单，删一段也应该很简单。** 不要为当前模型的特定缺陷写复杂补救逻辑——模型把那个缺陷修掉之后，你的补救就成了纯累赘。每次模型大版本升级，审一遍 Harness 把没用的剥掉（§9）。
 
-### 迭代思维
+### signal placement：规则放哪才生效
 
-别四层全做完才开始用。第一层先跑起来，碰到问题再加第二层。Mitchell Hashimoto 的原始定义是这个过程的最佳描述："每次 Agent 犯错，就改变系统让这个错误在结构上不可能再发生。"
+同一条指令写在 CLAUDE.md、工具描述、工具返回结果里，效果可能相反。"读到整页就继续读"写进工具描述没用，原样搬进工具返回结果就生效——因为它出现在模型正在读的数据旁边。**调 harness 时别只问"规则该说什么"，要问"规则该出现在哪里才会被读到"。** 这条是贯穿四层的微观心法。
+
+---
+
+## 附录 A：Hooks 事件与 JSON 协议速查
+
+**常用事件**（v2.1.200+，节选；标 ✓ 的能用退出码 2 或 `decision` 阻断）：
+
+| 事件 | matcher | 阻断 |
+|------|---------|------|
+| `SessionStart` / `SessionEnd` | startup/resume/clear/compact | 否 |
+| `UserPromptSubmit` ✓ | 无 | 是 |
+| `PreToolUse` ✓ | 工具名 | 是 |
+| `PostToolUse` | 工具名 | 否 |
+| `Stop` ✓ / `SubagentStop` ✓ | 无 / agent_type | 是 |
+| `Notification` | permission_prompt/idle_prompt | 否 |
+| `PreCompact` ✓ | manual/auto | 是 |
+
+> 另有 `PermissionRequest`、`PostToolBatch`、`TaskCreated/Completed`、`PreCompact`、`FileChanged`、`WorktreeCreate/Remove`、`Elicitation` 等更多事件，按需查官方文档。
+
+**matcher 语法**：只含字母数字/空格/`|,` 时按字面量匹配（`"Bash"`、`"Edit|Write"`）；含其他字符按正则（`"mcp__.*__write.*"`）。
+
+**JSON 输出字段**（退出码 0 + 纯 JSON stdout）：
+
+```json
+{
+  "continue": false,                  // 停止整个处理流程
+  "stopReason": "给用户看的原因",
+  "systemMessage": "警告",             // 展示给用户
+  "suppressOutput": true,              // 隐藏 hook 自己的 stdout
+  "additionalContext": "注入上下文",    // 回灌给 Agent
+  "hookSpecificOutput": {              // 事件专用决策
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow|deny|ask",
+    "permissionDecisionReason": "为什么",
+    "updatedInput": {}                 // 改写工具入参
+  }
+}
+```
+
+---
+
+## 附录 B：配置文件放哪里
+
+| 文件 | 位置 | 作用范围 |
+|------|------|---------|
+| `settings.json` | `~/.claude/` | 全局（所有项目） |
+| `settings.json` | 项目 `.claude/` | 本项目（进 git，团队共享） |
+| `settings.local.json` | 项目 `.claude/` | 本项目本机（进 .gitignore，个人覆盖） |
+| `CLAUDE.md` | 项目根 / 子目录 | 所在目录及子目录 |
+| `agents/*.md` | `~/.claude/` 或项目 `.claude/` | 全局 / 本项目 |
+| `skills/<name>/SKILL.md` | `~/.claude/` 或项目 `.claude/` | 全局 / 本项目 |
+| `commands/*.md` | `~/.claude/` 或项目 `.claude/` | 全局 / 本项目 |
+| `.mcp.json` | 项目根 | 本项目（进 git） |
+
+**原则**：团队共享的（CLAUDE.md、架构 hook、permissions 策略）放项目 `.claude/` 进 git；个人的（本地路径、私钥相关、个人偏好）放 `settings.local.json` 或 `~/.claude/`。
 
 ---
 
@@ -276,7 +445,7 @@ Simon Willison 总结过一个框架，很好记：**Agent 最多同时拥有下
 
 | 我要…… | 看哪个 |
 |---------|--------|
-| 理解 Harness Engineering 是什么、从哪来、为什么重要 | `harness-engineering-article.md` |
+| 理解 Harness Engineering 是什么、为什么重要 | `harness-engineering-article.md` |
 | 评估现有项目的 Harness 成熟度 | `harness-principles.md` |
-| 动手给我的项目配置 Harness | 就这份 |
-| 查某个具体配置的出处和理论依据 | `harness-principles.md` → 对应维度的"来源"字段 |
+| 动手给我的项目配 Claude Code Harness | 就这份 |
+| 查某个配置的理论依据 | `harness-principles.md` → 对应维度的"来源"字段 |
