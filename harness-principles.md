@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.8
-**更新日期**: 2026-07-06
+**版本**: v1.9
+**更新日期**: 2026-07-13
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -66,6 +66,12 @@
 | [MUSE: A Unified Agentic Harness for MLLMs](https://arxiv.org/abs/2606.03005) | 多机构联合（2026.06） | 多模态统一结构化执行 Harness，model-agnostic 可组合模块包裹现成 MLLM，证明 scaffold 优化逻辑跨模态成立 |
 | [Is Grep All You Need?](https://arxiv.org/abs/2605.15184) | PwC（2026.05） | 检索场景实证：决定 agentic search 质量的是 harness（工具暴露/结果格式化/迭代循环）而非检索方法，为 Binding Constraint Thesis 提供交叉验证 |
 | [The Bitter Lesson of Agent Harnesses](https://browser-use.com/posts/bitter-lesson-agent-harnesses) | Gregor Zunic / browser-use（2026.04） | helpers 也是抽象的极简主义心法，CDP 直连 + self-heal loop 让 agent 自补缺失工具；被 AHE 与 Binding Constraint Thesis 引用 |
+| [AI Harness Engineering: A Runtime Substrate](https://arxiv.org/abs/2605.13357) | Zhong & Zhu（2026.05） | 能力涌现自 model-harness-environment 系统；11 项组件责任 + H0–H3 四级阶梯 + trace-based episode package 评估协议 |
+| [Agent Harness for LLM Agents: A Survey](https://www.preprints.org/manuscript/202604.0428) | Preprints（2026.04） | 形式化六元组 H=(E,T,C,S,L,V)；六组件完整性矩阵对 23 系统分类——能进生产的系统无一例外六组件齐全；追溯 harness 从测试/RL 到 LLM Agent |
+| [Harness Component Taxonomy, Evaluation, and Model](https://www.preprints.org/manuscript/202606.2203) | Preprints（2026.06） | 结构/匹配/动态三层分析；模型-harness 共演化——例行支撑迁入权重，约束性治理留在外部，为可剥离性划界 |
+| [Tuning the Harness, Not the Model](https://www.langchain.com/blog/tuning-the-harness-not-the-model-a-nemotron-3-ultra-playbook) | LangChain（2026.07） | 开源模型只调 harness 即逼近 Opus 4.8（0.86 vs 0.87），成本约 1/10；harness-vs-weights 诊断、core vs profile 切分、signal placement |
+| [How Middleware Lets You Customize Your Agent Harness](https://www.langchain.com/blog/how-middleware-lets-you-customize-your-agent-harness) | LangChain（2026.03） | 六钩子中间件 taxonomy；中间件两份工作（代码强制 vs 上下文工程）；PII 确定性合规——"无法用提示词实现 HIPAA 合规" |
+| [Your Harness, Your Memory](https://www.langchain.com/blog/your-harness-your-memory) | LangChain（2026.04） | 记忆是 harness 核心职责而非外挂；闭源 harness/API 后的 compaction = 交出记忆控制权与平台锁定；Claude Code 泄露 512k 行即 harness 规模 |
 
 ---
 
@@ -170,6 +176,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Agent 记忆系统可将历史经验压缩为模式文档
 - [ ] 启用了 KV-cache 优化（稳定前缀 + 可变后缀架构）
 - [ ] Agent 记忆具备情景维度与时序版本（episodic memory / temporal versioning）——当前 0/10 生产级 harness 缺失这两项，是长任务可靠性的关键缺口（参考 Memory-Aware SE Agents）
+- [ ] 记忆所有权与可移植性有考量（记忆归项目/用户所有，compaction 与长期记忆不锁定在闭源 harness 或厂商 API 后；换模型/换 harness 能带走记忆——参考 Your Harness, Your Memory）
 
 #### D2.4 Isolate（隔离）
 
@@ -226,6 +233,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Harness 有自愈能力（Agent 可自动识别 Harness 缺陷 → 提出修改 → 验证 → 合入，参考 Self-Harness 的 Weakness Mining→Proposal→Validation 闭环）
 - [ ] Harness 与模型权重的协同优化有考量（是否只优化 Harness 而忽略了权重联合优化的潜力，参考 SIA）
 - [ ] 错误→规则的 ratchet 机制存在（Agent 的每次失败都被固化为一条可追溯的 Harness 规则，而非停留在"偶发事故"——参考 Osmani）
+- [ ] 可剥离边界按"例行支撑 vs 约束性治理"区分（例行能力支撑随模型进步可删/迁回模型，约束性治理如 PII/权限/预算必须留在外部——参考 Component Taxonomy Survey 的模型-harness 共演化）
 
 **评估标准**：
 - 1 星：无任何熵管理意识
@@ -264,6 +272,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 安全测试有自动化（非仅依赖审查 Agent）
 - [ ] 敏感数据（密钥、密码）不在代码或 CLAUDE.md 中
 - [ ] 多用户/多租户场景有独立的安全治理层（非仅依赖提示词约束——参考 Harness-MU 的执行钩子强制执行权限边界）
+- [ ] 确定性合规由中间件钩子强制执行（PII 脱敏、内容审核等"每次必触发"的策略用代码实现而非提示词——"无法用提示词实现 HIPAA 合规"，参考 Middleware Customization）
 
 **评估标准**：
 - 1 星：无安全意识，Agent 拥有完全权限
@@ -333,6 +342,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 有模型专属 Harness 配置机制（不同模型家族有不同提示词/工具/中间件配置，非"一套配置适配所有模型"——参考 Tuning Deep Agents 的 Harness Profiles）
 - [ ] Harness 扩展通过可组合中间件实现（每条规则是独立模块，新增/删除一行配置即可——参考 How to Build a Custom Agent Harness 的中间件式扩展范式）
 - [ ] 缺失能力有 agent 自补机制（agent 遇到缺失工具时能自行编写 helper 而非阻塞报错，参考 Bitter Lesson 的 self-heal loop——与 ratchet 的"加规则"形成"减 helper"对照）
+- [ ] Harness 改动遵循 core vs profile 切分纪律（每条改动追问"能往 core 推多远"，模型专属部分隔离到 profile，让 core 保持干净可跨模型复用——参考 Nemotron Playbook）
 
 **评估标准**：
 - 1 星：无工作流，Agent 自由发挥
@@ -360,6 +370,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 不同模型在同一 Harness 下的性能差异可独立测量（Harness 方差 vs 模型方差可分解）
 - [ ] 基准测试结果附带 Harness 配置说明（非仅报告模型名称和分数）
 - [ ] 评估采用 value-aware 视角（不只看 task success，同时报告成本、延迟、超时率、恢复质量——参考 QA→Task Completion Survey）
+- [ ] 评估产出可审计的 episode package（每次运行转为含复现日志/失败归因/确定性需求检查/结构化验证报告的证据包，而非仅一个补丁——参考 Runtime Substrate 的 H0–H3 阶梯与 trace-based 评估协议）
 
 #### D9.3 Harness 可迁移性
 
@@ -527,3 +538,4 @@ Level X（一句话总结）
 | 2026-06-26 | v1.6 | 补充 11 个权威来源（共 48 个）：Harness-MU、Categorical Architecture、Algorithm Discovery Harness、Physical AI Harness、Post-Training Interplay（5 篇学术论文）；Tuning Deep Agents (Harness Profiles)、Custom Agent Harness (Middleware)、Deep Agents Deploy、Deep Agents v0.6、Bayer AG PRINCE（6 篇行业文章）；D5 安全防护新增多用户治理检查项；D8 工作流编排新增模型专属 Harness 配置 + 可组合中间件两项检查项；D5/D8 五星标准同步扩展 |
 | 2026-06-29 | v1.7 | 补充 3 个权威来源（共 51 个）：ETCLOVG Survey（OpenReview/TMLR）、QA→Task Completion Survey（华为）、Osmani Agent Harness Engineering 博客；D1.1 新增 AGENTS.md 精简 + ratchet 检查项、D4 新增错误→规则 ratchet 检查项、D9.2 新增 value-aware evaluation 检查项 |
 | 2026-07-06 | v1.8 | 补充 3 个权威来源（共 54 个）：MUSE 多模态统一 Harness（arXiv）、Is Grep All You Need 检索场景实证（PwC）、Bitter Lesson of Agent Harnesses 极简主义心法（browser-use）；D8 工作流编排新增 agent 自补缺失工具（self-heal loop）检查项 |
+| 2026-07-13 | v1.9 | 补充 6 个权威来源（共 60 个）：AI Harness Engineering 运行时基座 + H0–H3 阶梯（arXiv）、Agent Harness 六元组完整性 Survey（Preprints）、Harness 组件分类/共演化 Survey（Preprints）3 篇学术论文；Nemotron 3 Ultra Playbook、Middleware 定制、Your Harness Your Memory（LangChain）3 篇行业文章；D2 新增记忆所有权/可移植性、D4 新增共演化（例行迁入/治理留存）、D5 新增确定性合规（PII/HIPAA）、D8 新增 core vs profile 切分、D9 新增 trace-based episode package 五项检查项 |

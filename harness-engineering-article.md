@@ -351,7 +351,13 @@ CAR 框架（4.2）按"职责"把 Harness 分成三层（Control/Agency/Runtime�
 
 把 Observability 和 Governance 单列出来，反映了一个生产级共识：**可观测性和治理不是"做好之后再加"的补丁，而是和上下文、工具同等重要的一等架构关注点**。Li 等人将 170+ 个开源项目映射到这套七层上，暴露了生态的典型覆盖缺口——大多数项目在 Context 和 Tool 层做得扎实，在 Observability 和 Governance 层明显薄弱。
 
-至此，第四章给了三种互补的 Harness 解剖视角：**Fowler 四象限**（按约束类型）、**CAR 三层**（按职责分层）、**六/七组件**（按运行时职责）。诊断 Harness 缺口时，三者交叉使用最有效——四象限告诉你"缺哪类约束"，CAR 告诉你"哪一层不完整"，六/七组件告诉你"哪个运行时职责没实现"。
+**形式化定义：六元组 H = (E, T, C, S, L, V)**（Preprints，2026.04）把执行 Harness 定义为一个六元组——执行循环（Execution loop）、工具注册表（Tool registry）、上下文管理器（Context manager）、状态存储（State store）、生命周期钩子（Lifecycle hooks）、评估接口（Evaluation interface）。这套形式化的价值不在定义本身，而在它的实证结论：该综述用"六组件完整性矩阵"对 23 个代表系统打分，发现**凡是成熟到能进生产部署的系统，无一例外都完整实现了全部六个组件**——缺任何一格的系统都卡在 Demo 阶段。它还把 Harness 的概念史向前追溯：从软件测试的 test harness、强化学习的 environment，到现代 LLM Agent 系统，一条统一主线是**"为不可预测的执行体提供一个可控、可观测、可验证的运行时"**。
+
+**运行时基座与 H0–H3 阶梯**（arXiv，2026.05）把视角再推进一步——软件工程能力不在模型里，而涌现自一个 **model-harness-environment 系统**，harness 是其中的"运行时基座（runtime substrate）"。它列出 11 项组件责任（任务规约、上下文选择、工具访问、项目记忆、任务状态、可观测性、失败归因、验证、权限、熵审计、干预记录），并提出一条 **H0–H3 四级阶梯**：等级越高，暴露给 Agent 的运行时支持越完整——低等级只产出最终补丁，高等级额外产出复现日志、失败归因、确定性需求检查和结构化验证报告。配套的是一个 **trace-based 评估协议**：把每次运行转成一个可审计的 **episode package**，其"证据结构"随 harness 等级系统化变化（详见十二章"评估工程"）。
+
+**模型–Harness 共演化**（Preprints，2026.06，结构/匹配/动态三层分析）给出了一个解释"为什么 Harness 不会随模型变强而消失"的理论：**例行能力支撑（routine capability-bearing support）会随模型进步迁移进权重，而约束性治理（constraint-bearing governance）必须留在外部**。换言之，"提醒模型补全最终答案"这类 scaffold 会被模型吸收，但"PII 脱敏、权限审批、预算上限"这类约束不会——后者正是 Harness 永久存在的理由。这也为第九章的"可剥离性"划了精确边界：可剥离的是例行支撑，不可剥离的是治理约束。
+
+至此，第四章给了多种互补的 Harness 解剖视角：**Fowler 四象限**（按约束类型）、**CAR 三层**（按职责分层）、**六/七组件**（按运行时职责）、**六元组形式化 + H0–H3 阶梯**（按完整度/成熟度）。诊断 Harness 缺口时交叉使用最有效——四象限告诉你"缺哪类约束"，CAR 告诉你"哪一层不完整"，六/七组件告诉你"哪个运行时职责没实现"，而六元组完整性矩阵和 H0–H3 阶梯告诉你"离生产级还差哪几格"。
 
 ---
 
@@ -576,6 +582,18 @@ MUSE 的贡献是双重的：
 
 这与具身 Harness（十二章）共同指向同一个方向：Harness 工程的设计原则（约束、验证、恢复、可剥离）正从软件工程 Agent，向多模态、物理世界等更高 stakes 的领域外扩——模型在变，模态在变，"模型之外的一切"这个论断不变。
 
+### 5.17 Nemotron 3 Ultra：开源模型 + Harness 调优 ≈ 前沿模型
+
+2026 年 7 月，LangChain 在《Tuning the Harness, Not the Model》中给出了 Harness 工程迄今最直接的成本证据：**固定开源模型（Nemotron 3 Ultra），只调 harness（系统提示词、工具描述、中间件），就把它的表现从基线约 0.80 调到 0.84，最佳 run 约 0.86——几乎追平 Opus 4.8 的最佳 0.87，而单次成本约为后者的 1/10（$4.48 vs $43.48），中位延迟持平在约 10 秒。** 这与 Deep Agents v0.6（6.11）的"开源模型 + 专属 Profile 缩小差距"相互印证，但把对照对象直接拉到了前沿闭源模型。
+
+比数字更有价值的是方法论上的三条纪律：
+
+1. **先诊断"是 harness 的问题还是权重的问题"**：当一个失败对 harness 的任何改动都不响应，说明它活在权重里，答案是后训练而不是再加一个 hook。这条线把"继续调 harness"和"开始训练模型"清晰分开。
+2. **Core vs Profile 切分**：每条改动要么是**核心 harness 改进**（对任何 Agent 都有用，如"读到整页就假定还有更多、继续读"），要么是**profile 配置**（只编码某个模型的需要）。纪律是把每条改动**尽可能往 core 推**——因为只有 core 版本会在"换了这个模型、换了这个任务"之后继续受益。
+3. **Signal placement（信号放置）**：同一句话，换个位置，效果相反。"读到整页就继续读"写进工具描述里没用，原样搬进工具返回结果里就开始生效——因为它出现在模型正在读的数据旁边。结论是：**调 harness 时不要只问"规则该说什么"，要问"规则该出现在哪里才会被读到"。**
+
+这三条纪律共同把 Harness 调优从"凭感觉改提示词"升级为"可归因、可泛化、可迁移"的工程活动——也再次印证了 5.15 的 Binding Constraint Thesis：决定表现的常常是 harness 而非模型。
+
 ---
 
 ## 六、Harness 的六大核心组件
@@ -680,6 +698,8 @@ LangChain 在 2026 年 4 月的实践中发现了一个反直觉的事实：**�
 
 Deep Agents v0.6 将这一理念扩展到开源模型（Kimi、Qwen、DeepSeek），在保持 20 倍以上成本优势的同时，通过专属 Harness 配置缩小了与前沿模型的差距。核心原则：**为模型适配 Harness，而非为 Harness 选择模型。**
 
+2026 年 7 月的 Nemotron 3 Ultra 调优（详见 5.17）给 Profiles 机制补了一条关键纪律——**core vs profile 切分**。每条 harness 改动要么是**核心改进**（对任何模型都生效，如"读到整页文件就假定还有更多、继续读"），要么是**profile 配置**（只编码某个模型的口味）。Profile 的作用恰恰是隔离后者，让 core 保持干净；调优时要对每条改动追问"它能往 core 推多远"，然后诚实地推到最远处——因为只有 core 版本会在"换模型、换任务"之后继续受益。配套的微观技巧是 **signal placement**：同一条指令写在系统提示词、工具描述、工具返回结果或注入消息里，效果可能相反——规则不只关乎"说什么"，更关乎"出现在哪里才会被读到"。
+
 ### 6.12 中间件式 Harness 扩展
 
 LangChain 在 2026 年 6 月的《How to Build a Custom Agent Harness》中提出了以**中间件（Middleware）**为核心的 Harness 定制范式。`create_agent` 是 LangChain 的 Harness 最小化原语——只实现核心 Agent 循环，所有扩展能力通过中间件注入。
@@ -695,6 +715,10 @@ LangChain 在 2026 年 6 月的《How to Build a Custom Agent Harness》中提�
 | `on_start` / `on_finish` | 会话初始化、状态持久化、资源清理 |
 
 **核心优势是可组合性**——每个中间件是独立的、可测试的模块：新增规则 = 新增中间件，删除规则 = 移除中间件。这完美呼应了"可剥离性"原则——当模型升级后某些中间件变成死重，删除它只是一行配置。
+
+中间件实际承担**两份不同的工作**，分开看更清楚（《How Middleware Lets You Customize Your Agent Harness》，LangChain，2026.03）。第一份是**代码层强制**：调用次数上限切断死循环、一次性重试吸收瞬时工具失败——这些不向模型请求任何东西，只改变循环本身的行为。第二份是**上下文工程**：在模型出错的那个瞬间，把正确的信号递到它面前，而不是把所有规则前载进系统提示词里碰运气。两份工作里，第二份常常是收益大头——同一句话从系统提示词搬到工具返回结果里就生效（5.17 的 signal placement）。
+
+其中有一类强制**必须用中间件、不能交给提示词**——**确定性合规策略**：PII 脱敏、内容审核、HIPAA 这类要求"每一次都必须触发"的策略。模型可能 99 次照办提示词里的"请先脱敏"，但第 100 次漏一次就是事故。这类策略只能活在 `before_model`/`after_model` 钩子里，用确定性代码对输入、输出、工具返回三处都过一遍脱敏/哈希/拦截。LangChain 的判断很直接：**"You can't prompt your way to HIPAA compliance."（你无法用提示词实现 HIPAA 合规。）** 这与 7.5 的确定性合规执行是同一原则的落地。
 
 LangChain 将这个范式提炼为 **Task-Harness Fit** 概念：客服 Agent 的 Harness 与长时间编码 Agent 的 Harness 完全不同——不是因为模型不同，而是因为任务对上下文、容错、策略执行、运行环境的要求不同。**最好的 Agent 不只是用最好的模型构建的，而是用与任务最匹配的 Harness 构建的。**
 
@@ -760,6 +784,14 @@ policies:
 传统 LLM 基于单用户训练范式，其基于提示词的安全防护在多轮对抗性交互下脆弱不堪。Harness-MU 将语言生成与安全编排解耦，在四个前沿模型（开源+闭源）上通过 Muses-Bench 基准验证：**所有访问控制攻击下均实现隐私保护**，实用性得分超过基线 0.28-0.39，指令遵循准确率最高提升 **48.9 个百分点**。
 
 这与 Policy as Code（7.3）一脉相承，但将安全边界从"单用户操作审批"扩展到"多用户数据隔离、权限模型与审计追踪"——在企业协作 Agent 场景中，这些必须由 Harness 层机械性强制执行，而非依赖模型"自觉"。
+
+### 7.5 确定性合规执行：你无法用提示词实现合规
+
+7.3 的 Policy as Code 把"什么操作需要审批"写成了机器可读策略。2026 年 3 月 LangChain 的《How Middleware Lets You Customize Your Agent Harness》把这条原则推到了**合规层**——PII 脱敏、内容审核、HIPAA 这类要求"每一次都必须触发"的策略，**不能交给提示词**。
+
+原因很直接：模型可能 99 次照办提示词里的"请先脱敏"，但第 100 次漏一次就是一次数据泄露事故。这类策略只能活在中间件钩子（如 `before_model` / `after_model`）里，用确定性代码保证输入、输出、工具返回三处都过一遍脱敏/哈希/拦截。LangChain 的总结是一句口号：**"You can't prompt your way to HIPAA compliance."（你无法用提示词实现 HIPAA 合规。）**
+
+这与 7.4 的多用户治理形成阶梯：**7.3** 管"单次危险操作要审批"，**7.5** 管"每条数据流过都要合规"，**7.4** 管"多个用户之间的权限边界"——三者都拒绝把安全托付给模型的概率性判断，都要求由 Harness 层的确定性代码强制执行。
 
 ---
 
@@ -880,6 +912,8 @@ Harness 工程代表了软件工程师工作内容的真正演进：
 
 2026 年，这门学科的方法论快速成型。Anthropic 的《Demystifying evals for AI agents》提出了一个 8 步评估设计框架，并区分两类评估：**capability evals**（押注未来模型能力，低通过率起步合理）与 **regression evals**（应维持接近 **100%** 通过率，专门捕获回退）。该文用一个案例量化了 Harness 对评估结果的决定性影响：Opus 4.5 在 CORE-Bench 上因 Harness 的刚性评分和任务歧义被**低估至 42%**——同样的模型，换个 Harness 评估，分数天差地别。LangChain 的《Better Harness: A Recipe for Harness Hill-Climbing with Evals》则把机器学习的数据纪律移植过来：6 步迭代 recipe（标记 eval → 训练/holdout 划分 → 基线 → 优化 → 人工审查 → 回归维护），并强调 **holdout set 是真实泛化的代理**——没有 holdout，你只是在让 Harness 过拟合到已知用例。
 
+2026 年 5 月，《AI Harness Engineering: A Runtime Substrate》把"可评估性"再往前推了一步——提出 **trace-based 评估协议**：把每一次 Agent 运行转成一个可审计的 **episode package**，里面不只是最终补丁，而是包含复现日志、失败归因、确定性需求检查和结构化验证报告。关键在于，这个 episode package 的"证据结构"随 harness 等级（H0–H3，见 4.4）系统化变化——低等级 harness 只能产出"一个补丁"，高等级 harness 能产出"为什么这个补丁是对的"的完整证据链。这把评估工程从"给结果打分"推进到了"让过程可审计"——而后者正是生产级 Agent 区别于 Demo 的本质（4.4 的六元组完整性结论也印证了这一点：能进生产的系统都补齐了评估接口 V 这一格）。
+
 ### 知识引擎（Knowledge Engines）
 
 当前的上下文工程处理的是"这次该放什么"。但真实项目包含比代码本身更重要的信息："为什么选了这个架构？""六个月前试过这个方案——为什么回滚了？"知识引擎旨在结合代码图谱（函数调用关系、依赖结构）、提交历史（代码为什么以及如何演变）和记忆系统（过往会话的经验教训），让 Agent 不仅"修改这个函数"，而是"理解这个函数为什么长成这样，然后修改它"。
@@ -993,6 +1027,9 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [From Question Answering to Task Completion: A Survey on Agent System and Harness Design](https://www.preprints.org/manuscript/202606.1312)（Preprints，2026.06）——华为团队综述，execution harness 六组件分解 + 四范式演进（含 model-harness co-evolution），SWE-bench/Terminal-Bench 2.0/WebArena 三大基准 model-harness 对照量化，提出 value-aware evaluation
 - [MUSE: A Unified Agentic Harness for MLLMs](https://arxiv.org/abs/2606.03005)（arXiv，2026.06）——多模态统一结构化执行 Harness（Multimodal Unified Structured Execution），model-agnostic 的可组合模块包裹任意现成 MLLM，证明"scaffold 优化而非模型优化"逻辑在视觉/图像/视频任务上同样成立
 - [Is Grep All You Need? How Agent Harnesses Reshape Agentic Search](https://arxiv.org/abs/2605.15184)（arXiv，2026.05）——PwC 实证：决定 agentic search 质量的是 harness（工具暴露/结果格式化/迭代循环）而非检索方法（grep vs 向量检索），为 Binding Constraint Thesis 提供检索场景交叉验证
+- [AI Harness Engineering: A Runtime Substrate for Foundation-Model Software Agents](https://arxiv.org/abs/2605.13357)（arXiv，2026.05）——将 SE 能力重新定位为涌现自 model-harness-environment 系统，提出 11 项组件责任 + H0–H3 四级阶梯 + trace-based episode package 评估协议
+- [Agent Harness for Large Language Model Agents: A Survey](https://www.preprints.org/manuscript/202604.0428)（Preprints，2026.04）——将执行 Harness 形式化为六元组 H=(E,T,C,S,L,V)，用六组件完整性矩阵对 23 个系统分类，发现"能进生产的系统无一例外六组件齐全"；追溯 harness 概念从软件测试/RL 到 LLM Agent 的演化
+- [A Survey of Harness Component Taxonomy, Evaluation, and Model](https://www.preprints.org/manuscript/202606.2203)（Preprints，2026.06）——结构/匹配/动态三层分析；提出模型-harness 双向共演化（例行支撑迁入权重，约束性治理留在外部），为"可剥离性"划出精确边界
 
 ### 官方资源
 - [2026 Agentic Coding Trends Report](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf)（Anthropic）
@@ -1016,6 +1053,9 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Deep Agents v0.6](https://www.langchain.com/blog/deep-agents-0-6)（LangChain，2026.05）——开源模型 Harness Profiles，20x+ 成本优势下缩小与前沿模型差距
 - [Building Reliable Agentic AI Systems](https://martinfowler.com/articles/reliable-llm-bayer.html)（Martin Fowler / ThoughtWorks，2026.06）——Bayer AG PRINCE 制药研发平台案例，上下文工程 + Harness 工程双重透镜分析
 - [Agent Harness Engineering](https://addyosmani.com/blog/agent-harness-engineering/)（Addy Osmani / Google，2026.06）——ratchet 心法（每个错误固化成规则）、AGENTS.md 精简原则（pilot's checklist）、hooks 执行层（success is silent, failures are verbose）、Harness-as-a-Service、Claude Code 架构逐层拆解
+- [Tuning the Harness, Not the Model: A Nemotron 3 Ultra Playbook](https://www.langchain.com/blog/tuning-the-harness-not-the-model-a-nemotron-3-ultra-playbook)（LangChain，2026.07）——开源模型只调 harness 即逼近 Opus 4.8（0.86 vs 0.87），成本约 1/10；提出 harness-vs-weights 诊断、core vs profile 切分、signal placement 三条调优纪律
+- [How Middleware Lets You Customize Your Agent Harness](https://www.langchain.com/blog/how-middleware-lets-you-customize-your-agent-harness)（LangChain，2026.03）——六钩子中间件 taxonomy（before_agent/before_model/wrap_model_call/wrap_tool_call/after_model/after_agent），中间件的两份工作（代码强制 vs 上下文工程），PII 确定性合规——"无法用提示词实现 HIPAA 合规"
+- [Your Harness, Your Memory](https://www.langchain.com/blog/your-harness-your-memory)（LangChain，2026.04）——记忆是 harness 的核心职责而非外挂；闭源 harness（尤其 API 后的）= 交出记忆控制权与平台锁定；Claude Code 泄露源码 512k 行即 harness 规模的证据
 
 ### 深度解读
 - [Engineering Rigor Doesn't Disappear — It Relocates: Four Years of AI Agentic Patterns](https://bits-bytes-nn.github.io/insights/agentic-ai/2026/04/05/evolution-of-ai-agentic-patterns-en.html)——从提示词到上下文到 Harness 的完整演进史
