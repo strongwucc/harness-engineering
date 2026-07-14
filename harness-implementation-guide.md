@@ -344,10 +344,53 @@ Simon Willison 的框架很好记：**Agent 最多同时拥有下面三样里的
 |------|----------------|
 | **定时器** | `/loop 30m /fix-flaky-tests` 或系统 cron 触发 `claude -p` |
 | **工作隔离区** | `git worktree add ../task-123 feature/task-123`，每个任务独立 worktree |
-| **技能注入** | §3 的 Skill 自动按需加载；CLAUDE.md 常驻 |
+| **技能注入** | §3 的 Skill 自动按需加载；CLAUDE.md 常驻；**`loop.md` 定义裸 `/loop` 的默认维护循环** |
 | **连接器** | MCP server（`.mcp.json`）让 Agent 读 GitHub issue / 数据库 / Slack |
 | **子 Agent 拆分** | §6 的 maker/checker 规模化：worker 修、reviewer 审、审过自动开 PR |
-| **状态持久化** | 进度写进 `PROGRESS.md`，下次从断点继续（SessionStart hook 可自动加载） |
+| **状态持久化** | 进度写 `PROGRESS.md` 断点续跑；`/loop` 任务会话范围，`--resume` 恢复未过期任务 |
+
+### 先选对调度方式
+
+`/loop` 是**会话范围**的——只在 Claude Code 运行且空闲时触发，会话退出即停、启动新对话即清。无人值守的关键路径别用 `/loop`：
+
+| | Cloud (Routines) | Desktop 计划任务 | `/loop` |
+|---|---|---|---|
+| 需机器/会话开机 | 否/否 | 是/否 | 是/**是** |
+| 跨重启持久 | 是 | 是 | 仅 `--resume` 恢复未过期 |
+| 本地文件 | 否（fresh clone） | 是 | 是 |
+| MCP / 权限 | 每任务配 | 每任务配 | **继承会话** |
+| 最小间隔 | 1 小时 | 1 分钟 | 1 分钟 |
+
+**选型**：不依赖你的机器可靠跑 → Cloud Routines；要本地文件但不依赖会话 → Desktop；会话内快速轮询 → `/loop`。要对事件**实时反应而非轮询**（CI 直接推进会话）→ Channels。
+
+### `/loop` 的三种形态
+
+| 你给什么 | 行为 |
+|---|---|
+| 间隔+提示词 `/loop 5m check deploy` | 固定计划 |
+| 仅提示词 `/loop check deploy` | Claude 每次迭代**动态选 1m–1h 延迟**（PR 活跃等短、无事等长），可能直接用 **Monitor tool** 流式跑后台脚本、避免轮询、更省 token |
+| 仅间隔或裸 `/loop` | **内置维护提示词**：继续未完成工作 → 照顾当前分支 PR（评论/失败 CI/合并冲突）→ 无事时清理。不越界、不可逆操作仅续已授权内容 |
+
+固定间隔 7 天自动过期；jitter 最多延 30 分钟（或间隔一半），精确时间别用 `:00`/`:30`。v2.1.196 起计划触发只跑允许调用的 skill，内置命令/禁用 skill/MCP prompts 作为纯文本不执行——防 loop 越权。
+
+### `loop.md`：把维护循环固化成文件
+
+裸 `/loop` 的内置维护提示词可被项目自定义替换——这是 Loop Engineering 在 Claude Code 的原生落点（Skills + State + Automations 三个原语交汇）：
+
+| 路径 | 范围 |
+|---|---|
+| `.claude/loop.md` | 项目级，优先 |
+| `~/.claude/loop.md` | 用户级，兜底 |
+
+```markdown title=".claude/loop.md"
+Check the `release/next` PR. If CI is red, pull the failing job log,
+diagnose, push a minimal fix. If new review comments arrived, address
+each and resolve the thread. If green and quiet, say so in one line.
+```
+
+纯 Markdown，像直接敲 `/loop` 提示词一样写；**编辑下次迭代即生效**（运行时可优化）；超 25000 字节截断；命令行给了提示词则忽略 `loop.md`。
+
+### 最小可跑示例
 
 一个最小的 cron + `/loop` 示例（每天早 9 点处理 CI 失败）：
 
@@ -355,6 +398,8 @@ Simon Willison 的框架很好记：**Agent 最多同时拥有下面三样里的
 # crontab -e
 0 9 * * * cd /path/to/project && claude -p "/loop 修复昨晚 CI 失败的测试，每个开独立 worktree，修完让 reviewer agent 审，过了开 PR" >> .claude/loop.log 2>&1
 ```
+
+> 注意：`claude -p` 每次起独立 session，`/loop` 任务会话范围、session 退出即停——这个示例靠系统 cron 次日重新触发，不是单个 loop 持续跑。要真正的无人值守持久调度，用 Routines 或 Desktop 计划任务。会话放后台（agent-view）可让 `/loop` 免终端继续跑。
 
 完整流程：
 

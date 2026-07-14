@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.9
-**更新日期**: 2026-07-13
+**版本**: v1.10
+**更新日期**: 2026-07-14
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -336,6 +336,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 多 Agent 协作时有清晰的职责分工和通信协议
 - [ ] 有自动化调度机制（定时触发或事件驱动，非纯手动启动——参考 Loop Engineering 的 Automations 原语）
 - [ ] 有跨会话状态持久化（进度文件/看板，Loop 中断后能从中断处继续——参考 Loop Engineering 的 State 原语）
+- [ ] 维护循环内容外部化为可配置文件（循环跑什么写成文件、运行时可优化，非硬编码在调度配置或每次手写——参考 Claude Code `loop.md`：Skills+State+Automations 三个原语交汇落点）
 - [ ] 有目标驱动运行模式（`/goal` 类能力：持续运行直到可验证条件满足，判定由独立模型完成，非 self-grade）
 - [ ] 高频重复任务有确定性回放机制（首次记录→后续回放，避免重复消耗推理 token——参考 LOOP Skill Engine）
 - [ ] 跨 context window 的长任务有结构化状态交接（结构化进度文件 + git 回滚，非依赖模型记忆——参考 Effective Harnesses for Long-Running Agents）
@@ -539,3 +540,4 @@ Level X（一句话总结）
 | 2026-06-29 | v1.7 | 补充 3 个权威来源（共 51 个）：ETCLOVG Survey（OpenReview/TMLR）、QA→Task Completion Survey（华为）、Osmani Agent Harness Engineering 博客；D1.1 新增 AGENTS.md 精简 + ratchet 检查项、D4 新增错误→规则 ratchet 检查项、D9.2 新增 value-aware evaluation 检查项 |
 | 2026-07-06 | v1.8 | 补充 3 个权威来源（共 54 个）：MUSE 多模态统一 Harness（arXiv）、Is Grep All You Need 检索场景实证（PwC）、Bitter Lesson of Agent Harnesses 极简主义心法（browser-use）；D8 工作流编排新增 agent 自补缺失工具（self-heal loop）检查项 |
 | 2026-07-13 | v1.9 | 补充 6 个权威来源（共 60 个）：AI Harness Engineering 运行时基座 + H0–H3 阶梯（arXiv）、Agent Harness 六元组完整性 Survey（Preprints）、Harness 组件分类/共演化 Survey（Preprints）3 篇学术论文；Nemotron 3 Ultra Playbook、Middleware 定制、Your Harness Your Memory（LangChain）3 篇行业文章；D2 新增记忆所有权/可移植性、D4 新增共演化（例行迁入/治理留存）、D5 新增确定性合规（PII/HIPAA）、D8 新增 core vs profile 切分、D9 新增 trace-based episode package 五项检查项 |
+| 2026-07-14 | v1.10 | D8 工作流编排新增维护循环内容外部化检查项（循环跑什么写成文件、运行时可优化，非硬编码在调度配置或每次手写——参考 Claude Code `loop.md`：Skills+State+Automations 三个原语交汇落点，与 implementation-guide 第四层对齐） |
