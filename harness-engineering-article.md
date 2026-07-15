@@ -438,7 +438,7 @@ Google DeepMind 团队在 TextArena 145 款游戏中测试了一个反直觉的�
 
 - 生成的 Harness 在 145 款 TextArena 游戏中**完全防止了所有非法走法**
 - 配备自动 Harness 的 **Gemini-2.5-Flash 超越了 Gemini-2.5-Pro**
-- 将技术推到极限：将**整个策略生成为代码**，完全消除了推理时的 LLM 调用——在 16 款单人游戏中获得了比 Gemini-2.5-Pro 和 GPT-5.2-High 更高的平均奖励
+- 将技术推到极限：将**整个策略生成为代码**，完全消除了推理时的 LLM 调用——在 16 款单人游戏中获得了比 Gemini-2.5-Pro 和 GPT-5.2-High 更高的平均奖励（Gemini/GPT 版本为研究快照，"小模型+harness>大模型"结论方向不变）
 
 **核心启示：用较小的模型合成自定义代码 Harness（甚至完整策略），可以超越更大的模型，同时成本更低。** 这与 LangChain 的"纯 Harness 优化"和 AHE 的"自动进化"形成了三角验证——Harness 的价值在多个独立研究中得到确认。
 
@@ -563,6 +563,8 @@ LangChain 对 1,300+ 专业人士的调查揭示了 Agent 工程在 2026 年的�
 | WebArena | GPT-4o | 13.1%（model-only） | 54.6%（WebOperator） | **41.5pp** |
 | SWE-bench Verified | Claude 3.5 Sonnet | 33.6%（SWE-agent） | 53.6%（PatchPilot） | 20.0pp |
 
+> **版本快照说明**：表中模型为各原始研究发表时的快照，非当前旗舰——截至 2026.07，GPT 已至 5.6、Gemini Flash 线已至 3.5、Claude 已至 Sonnet 5 / Opus 4.8。本表与 5.7、6.11 的对照数据用于展示"同模型换 Harness"的**结构性差距**，不作实时模型排名。
+
 数据说明三件事：
 
 1. **模型仍重要，但不是全部**：固定 Harness 换更强模型，Terminal-Bench 上常有 10%+ 提升——模型是天花板。
@@ -644,15 +646,9 @@ LangChain 在《The Anatomy of an Agent Harness》（2026.03）中提出了一�
 
 ### 6.8 Brain-Hands 解耦：Session 的独立生命周期
 
-Scaling Managed Agents（Anthropic，2026.04）提出了一个被传统 Agent 架构忽视的组件：**Session 作为独立的一等公民。**
+5.10 已给出 Brain/Hands/Session 三分解耦的架构与收益（`wake(sessionId)`、`getEvents()`、Session≠Context Window）。这里只补一个常被忽视的推论：**Session 必须作为独立于 Harness 进程的一等公民**——事件日志外置为追加式持久化存储，Harness 自身无状态化，任何实例都能从日志接手续跑。
 
-传统 Agent 将 Session 日志内嵌在 Harness 进程中——Harness 挂了，Session 也丢了。生产级 Harness 应该：
-
-- **Session 外置**：事件日志是追加式持久化存储，独立于 Harness 进程和沙箱容器
-- **Harness 无状态化**：通过 `wake(sessionId)` 从日志恢复上下文，任何一个 Harness 实例都可以接手续跑
-- **按需查询**：Session 提供 `getEvents()` 接口按位置切片，而非将整个历史塞进上下文窗口
-
-这个设计的核心洞察是：**上下文窗口 ≠ 会话状态。** 上下文窗口是瞬时的、有限的、需要管理的；会话状态是持久的、完整的、应该保留的。把两者等价对待，会导致不可逆的信息损失（压缩/截断）和脆弱的故障恢复。
+核心洞察是区分两种"状态"：**上下文窗口是瞬时的、有限的、需要管理的；会话状态是持久的、完整的、应该保留的**。把两者等价对待，会导致不可逆的信息损失（压缩/截断）和脆弱的故障恢复。这与 6.10 的跨 context window 状态交接一脉相承——长任务的可靠性，取决于状态能否在会话之间无损传递。
 
 ---
 
@@ -695,6 +691,8 @@ LangChain 在 2026 年 4 月的实践中发现了一个反直觉的事实：**�
 |------|-------------|-------------|------|
 | GPT 5.3 Codex | 33% | 53% | +20pp |
 | Claude Opus 4.7 | 43% | 53% | +10pp |
+
+> 模型版本为研究快照（详见 5.15 版本说明）。
 
 Deep Agents v0.6 将这一理念扩展到开源模型（Kimi、Qwen、DeepSeek），在保持 20 倍以上成本优势的同时，通过专属 Harness 配置缩小了与前沿模型的差距。核心原则：**为模型适配 Harness，而非为 Harness 选择模型。**
 
@@ -787,11 +785,9 @@ policies:
 
 ### 7.5 确定性合规执行：你无法用提示词实现合规
 
-7.3 的 Policy as Code 把"什么操作需要审批"写成了机器可读策略。2026 年 3 月 LangChain 的《How Middleware Lets You Customize Your Agent Harness》把这条原则推到了**合规层**——PII 脱敏、内容审核、HIPAA 这类要求"每一次都必须触发"的策略，**不能交给提示词**。
+PII 脱敏、内容审核、HIPAA 这类要求"每一次都必须触发"的策略，机制已在 6.12（中间件钩子的确定性合规）讲清——模型可能 99 次照办"请先脱敏"，第 100 次漏一次就是数据泄露，所以只能活在 `before_model`/`after_model` 钩子里用代码保证。LangChain 的总结：**"You can't prompt your way to HIPAA compliance."（你无法用提示词实现 HIPAA 合规。）**
 
-原因很直接：模型可能 99 次照办提示词里的"请先脱敏"，但第 100 次漏一次就是一次数据泄露事故。这类策略只能活在中间件钩子（如 `before_model` / `after_model`）里，用确定性代码保证输入、输出、工具返回三处都过一遍脱敏/哈希/拦截。LangChain 的总结是一句口号：**"You can't prompt your way to HIPAA compliance."（你无法用提示词实现 HIPAA 合规。）**
-
-这与 7.4 的多用户治理形成阶梯：**7.3** 管"单次危险操作要审批"，**7.5** 管"每条数据流过都要合规"，**7.4** 管"多个用户之间的权限边界"——三者都拒绝把安全托付给模型的概率性判断，都要求由 Harness 层的确定性代码强制执行。
+这里只补它与 7.3、7.4 的阶梯关系：**7.3** 管"单次危险操作要审批"，**7.5** 管"每条数据流过都要合规"，**7.4** 管"多个用户之间的权限边界"。三者都拒绝把安全托付给模型的概率性判断，都要求由 Harness 层的确定性代码强制执行。
 
 ---
 
@@ -817,6 +813,8 @@ policies:
 - **模型假设可剥离**：不为当前模型的特定缺陷构建永久性补救逻辑——当模型升级后这些变成死重
 
 这个原则来自 Anthropic 的生产经验：当初为 Claude Sonnet 4.5 的"上下文焦虑"构建的上下文重置机制，在 Opus 4.5 上变成了纯粹的累赘。**好的 Harness 设计让过时的组件容易移除。**
+
+但"可剥离"不是无差别地删——它有一道判据、一个触发条件、一道验证。**判据**是模型-harness 共演化划的线（详见 4.4）：例行支撑可删，约束治理不可删。**触发条件**是 ratchet 心法（6.13）："只在强模型让某约束变多余时才删它"。**验证**是删改前在 holdout 任务集上跨模型对比，而非单模型上"感觉没退化"。这把可剥离从口号变成一条有判据、有触发、有验证的工程动作——操作流程见 implementation-guide §9「模型升级时的 Harness 审计 SOP」。
 
 ---
 
@@ -985,6 +983,8 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 
 > **2026 年上半场的竞争优势来自基础设施（Harness），下半场的竞争来自自动化（Loop）。模型是商品，Harness 是护城河，Loop 是引擎。**
 
+需要一处分层细化："模型是商品"是**结构性判断**——Agent 的可靠性主要来自 Harness 而非模型，这点未被推翻。但"Harness 是护城河"有一条**能力区间限定**：2026 年 7 月 Lin 等人《Harness Updating Is Not Harness Benefit》实测 harness 收益**非单调**——弱模型获益少、中等能力模型获益最多、强模型区间收益反降；同期 Lilian Weng 的综述也指出模型智能仍是核心约束。所以更精确的说法是：**在中等能力模型区间，Harness 是最划算的护城河；模型足够强时，边际收益向模型本身倾斜。** 这不削弱"可剥离、可审计、可复现"的工程结论——反而强化它：正因强模型区间 harness 收益递减，定期审计、删掉死重才更要紧。
+
 而最好的设计——无论是 Harness 还是 Loop——都关乎"**如何让不需要的东西容易被移除**"。当 Claude 5.0 发布时，你为 Claude 4.5 构建的上下文重置逻辑可能变成死重。当 Loop 的某个自动化步骤被模型原生能力取代时，你应该能一行配置删掉它。
 
 最后借用 Osmani 的话收尾——它不仅适用于 Loop，也适用于整个 Harness 工程的精神：
@@ -1030,6 +1030,8 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [AI Harness Engineering: A Runtime Substrate for Foundation-Model Software Agents](https://arxiv.org/abs/2605.13357)（arXiv，2026.05）——将 SE 能力重新定位为涌现自 model-harness-environment 系统，提出 11 项组件责任 + H0–H3 四级阶梯 + trace-based episode package 评估协议
 - [Agent Harness for Large Language Model Agents: A Survey](https://www.preprints.org/manuscript/202604.0428)（Preprints，2026.04）——将执行 Harness 形式化为六元组 H=(E,T,C,S,L,V)，用六组件完整性矩阵对 23 个系统分类，发现"能进生产的系统无一例外六组件齐全"；追溯 harness 概念从软件测试/RL 到 LLM Agent 的演化
 - [A Survey of Harness Component Taxonomy, Evaluation, and Model](https://www.preprints.org/manuscript/202606.2203)（Preprints，2026.06）——结构/匹配/动态三层分析；提出模型-harness 双向共演化（例行支撑迁入权重，约束性治理留在外部），为"可剥离性"划出精确边界
+- [HarnessX: A Composable, Adaptive, and Evolvable Agent Harness Foundry](https://arxiv.org/abs/2606.14249)（arXiv，2026.06）——用 typed harness primitives + substitution algebra 组装，把 harness 当作运行时可演化的类型化一等对象（与 Self-Harness 互补）
+- [ToFu: A White-Box, Token-Efficient Agent Harness for Researchers](https://arxiv.org/abs/2607.11423)（arXiv，2026.07）——白盒、token 高效、面向研究的 agent harness，orchestration 可 inspect/modify/evaluate，为 harness 实验提供可检验平台
 
 ### 官方资源
 - [2026 Agentic Coding Trends Report](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf)（Anthropic）
@@ -1046,7 +1048,7 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)（Anthropic，2025.11）——initializer + coding agent 双角色 harness，200+ JSON feature 清单 + git 回滚 + 进度文件实现跨 context window 状态交接
 - [When AI builds itself](https://www.anthropic.com/institute/recursive-self-improvement)（Anthropic Institute，2026.04）——内部一手数据：80%+ 代码由 Claude 编写，人均产出 8 倍增长，1/3 生产 Bug 被自动 reviewer 抓出；提出"人类审查成为新瓶颈"（Amdahl's law）
 - [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)（Anthropic，2026.01）——agent harness 的 8 步评估设计框架，区分 capability/regression evals，三类 grader 组合策略
-- [Better Harness: A Recipe for Harness Hill-Climbing with Evals](https://www.langchain.com/blog/better-harness-a-recipe-for-harness-hill-climbing-with-evals)（LangChain，2026.04）——6 步 Harness 迭代 recipe，holdout set 防过拟合，跨模型（Sonnet 4.6 / GLM-5）验证泛化
+- [Better Harness: A Recipe for Harness Hill-Climbing with Evals](https://www.langchain.com/blog/better-harness-a-recipe-for-harness-hill-climbing-with-evals)（LangChain，2026.04）——6 步 Harness 迭代 recipe，holdout set 防过拟合，跨模型（Sonnet / GLM-5）验证泛化
 - [Tuning Deep Agents to Work Well with Different Models](https://www.langchain.com/blog/tuning-deep-agents-different-models)（LangChain，2026.04）——Harness Profiles 概念与实现，按模型维护专属配置覆盖层，tau2-bench +10-20pp
 - [How to Build a Custom Agent Harness](https://www.langchain.com/blog/how-to-build-a-custom-agent-harness)（LangChain，2026.06）——`create_agent` + 中间件式 Harness 扩展范式，Task-Harness Fit 概念
 - [Deep Agents Deploy: an open alternative to Claude Managed Agents](https://www.langchain.com/blog/deep-agents-deploy-an-open-alternative-to-claude-managed-agents)（LangChain，2026.04）——开源模型无关 Agent Harness，集成 MCP/A2A/Agent Protocol
@@ -1064,3 +1066,4 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [AI Agents in 2026: Tools, Memory, Evals, and Guardrails](https://andriifurmanets.com/blogs/ai-agents-2026-practical-architecture-tools-memory-evals-guardrails)——生产 Agent 的技术蓝图
 - [Harness Engineering: What Every AI Engineer Needs to Know in 2026](https://ai.gopubby.com/harness-engineering-what-every-ai-engineer-needs-to-know-in-2026-0ab649e5686a)——三大阵营、三种架构的比较分析
 - [The Bitter Lesson of Agent Harnesses](https://browser-use.com/posts/bitter-lesson-agent-harnesses)（Gregor Zunic / browser-use，2026.04）——致敬 Sutton 经典：helpers 也是抽象，删掉它们让 agent 写自己需要的；CDP 直连 + self-heal loop 的 ~600 行极简 harness 实践，被 AHE 与 Binding Constraint Thesis 两篇论文正式引用
+- [Harness Engineering for Self-Improvement](https://lilianweng.github.io/posts/2026-07-04-harness/)（Lilian Weng，2026.07）——上半年最系统的单篇 harness 综述：prompt→structured context→workflow→harness→optimizer code 演进框架，梳理 ACE/MCE/Self-Harness/AHE/SIA 全系，并对核心论点给出能力区间细化

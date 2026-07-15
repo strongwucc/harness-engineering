@@ -311,6 +311,18 @@ Claude Code **没有原生的"Harness Profile"概念**，多模型适配靠三�
 
 **core vs profile 纪律**（保留这条，砍掉理论）：每条 harness 改动要么是**核心改进**（换任何模型都生效），要么是**模型专属**（只服务某个模型的口味，如 glm 偏好的工具命名）。模型专属的部分隔离到 `/switch` 切换的配置里，让核心 `settings.json` 保持干净——换模型时只动 profile 层。
 
+**GLM5.2 / DeepSeek V4 profile 审计维度**——升级或 `/switch` 时按这张表逐项核对。Self-Harness 证明不同 base model 学到的是不同的 model-specific harness instructions，**两个模型弱点分布不同、profile 不能互换**；具体偏好留实测填充，勿臆测：
+
+| 维度 | GLM5.2 | DeepSeek V4 | 说明 |
+|------|--------|-------------|------|
+| 提示词格式偏好 | TODO（实测） | TODO（实测） | 吃 XML 标签 / Markdown 结构 / 纯指令？ |
+| 工具命名敏感度 | TODO | TODO | 偏好哪些工具名（apply_patch / edit_file 等） |
+| 中间件策略 | TODO | TODO | 推理够强时哪些显式检查可去掉 |
+| 推理预算（effort） | TODO | TODO | 默认 high/xhigh，简单任务降档省 token |
+| 已知坑 | TODO | TODO | 各自的失败模式 |
+
+填法：每次实测到一个偏好，填进对应格子并加日期。删改 profile 项时按 §9 的 holdout 流程验证。
+
 ### 9. 熵管理：定期清理 + /loop
 
 AI 写得越多，代码库和 Harness 都会乱：命名分化、文档脱节、死代码堆积、为旧模型写的 hook 变成死重。需要**定期跑的清理 Agent**，用 `/loop` 或系统 cron 定时触发（§第四层）：
@@ -321,6 +333,32 @@ AI 写得越多，代码库和 Harness 都会乱：命名分化、文档脱节�
 - **Harness 自审**：模型每升一次大版本，审一遍 hooks/permissions，把没用的剥掉（AHE 证明这事能让 Agent 自己做——Weakness Mining→Proposal→Validation）
 
 清理脚本本身写成 Skill（如 `.claude/skills/harness-audit/`），`/loop` 每周触发一次。
+
+#### 模型升级时的 Harness 审计 SOP
+
+「模型每升一次大版本，审一遍 Harness 把没用的剥掉」这句话的完整流程。核心：**把"该不该删"从感觉变成可证伪实验，且永不碰约束治理类配置**。
+
+**先分两类——只有一类能审删**：
+
+| 类别 | 例子 | 升级时 |
+|------|------|--------|
+| **例行支撑**（可剥离） | "模型总忘记 X"的提示词补丁、格式脚手架、循环检测、手动 reasoning 预算 | 候选删除，逐项验证 |
+| **约束治理**（不可剥离） | PII 脱敏 hook、权限 deny、审批门、预算上限 | **永不因模型变强而删** |
+
+这条边界来自模型-harness 共演化研究：例行能力支撑会被模型吸收进权重、随版本消失；约束性治理（"你无法用提示词实现合规"）必须永远留在外部。
+
+**审计 6 步**（针对 `/switch` 在 GLM5.2 / DeepSeek V4 间切换）：
+
+1. **冻结基线**：pin 当前版本，跑一遍回归型 eval 集记指标。
+2. **先审 system prompt / CLAUDE.md**：AHE 消融证明收益来自工具/中间件/长期记忆，**而非系统提示词**——纠正性条款是最可能的死重，优先审。
+3. **标 core / profile**：core（换任何模型都生效）留在 `settings.json`；profile（只服务 GLM5.2 或 DeepSeek V4 口味）隔离到 `/switch` 层。
+4. **跨模型 holdout 验证**：删/改一项 → 在 holdout 任务集上跑，**两个模型都跑**。单模型上"没退化"可能是过拟合——Better Harness 就是跨 Sonnet / GLM-5 验证泛化的。
+5. **ratchet 触发**：只有"强模型让某约束变多余"才删，删时记录它补的是什么旧缺陷。
+6. **自审兜底**：让 Agent 跑 Self-Harness 的 Weakness Mining→Proposal→Validation，它提删改建议、你在 holdout 上验收。
+
+**陷阱**：Harness 不会单纯收缩，只会移动——旧失败消失，天花板抬高冒出新失败模式。审计既要做减法，也要识别新失败补新约束。
+
+> 旁证（非本文权威来源体系）：社区博客「The Harness Problem」的"弱模型探针"（强制用老/小模型跑通来逼出冗长提示）、论文「Removal-Based Attribution」的 LOO 归因（删一项看指标差），与上面 holdout 思路一致，作补充视角。
 
 ### 10. 安全纵深
 
@@ -423,7 +461,7 @@ each and resolve the thread. If green and quiet, say so in one line.
 
 ### 可剥离
 
-模型会升级。今天必要的 hook/中间件明天可能变死重。**加一段配置很简单，删一段也应该很简单。** 不要为当前模型的特定缺陷写复杂补救逻辑——模型把那个缺陷修掉之后，你的补救就成了纯累赘。每次模型大版本升级，审一遍 Harness 把没用的剥掉（§9）。
+模型会升级。今天必要的 hook/中间件明天可能变死重。**加一段配置很简单，删一段也应该很简单。** 不要为当前模型的特定缺陷写复杂补救逻辑——模型把那个缺陷修掉之后，你的补救就成了纯累赘。每次模型大版本升级，审一遍 Harness 把没用的剥掉（操作步骤见 §9「模型升级时的 Harness 审计 SOP」）。
 
 ### signal placement：规则放哪才生效
 

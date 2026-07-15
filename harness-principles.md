@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.10
-**更新日期**: 2026-07-14
+**版本**: v1.12
+**更新日期**: 2026-07-15
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -46,7 +46,7 @@
 | [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) | Anthropic（2025.11） | initializer + coding agent 双角色 harness，200+ JSON feature 清单 + git 回滚实现跨 context window 状态交接 |
 | [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) | Anthropic（2026.01） | 8 步评估设计框架，区分 capability/regression evals，归纳 code/model/human 三类 grader |
 | [When AI builds itself](https://www.anthropic.com/institute/recursive-self-improvement) | Anthropic Institute（2026.04） | 内部一手数据：80%+ 代码 Claude 写、人均产出 8 倍增长；提出"人类审查成为新瓶颈"（Amdahl's law） |
-| [Better Harness: A Recipe for Harness Hill-Climbing with Evals](https://www.langchain.com/blog/better-harness-a-recipe-for-harness-hill-climbing-with-evals) | LangChain（2026.04） | 6 步 Harness 迭代 recipe，holdout set 防过拟合，跨模型（Sonnet 4.6/GLM-5）验证泛化 |
+| [Better Harness: A Recipe for Harness Hill-Climbing with Evals](https://www.langchain.com/blog/better-harness-a-recipe-for-harness-hill-climbing-with-evals) | LangChain（2026.04） | 6 步 Harness 迭代 recipe，holdout set 防过拟合，跨模型（Sonnet/GLM-5）验证泛化 |
 | [How Good Is Your Harness? Statistical Evaluation of Coding Harnesses](https://openreview.net/forum?id=QI8z3skBwt) | 密歇根大学 / CTB@ICML 2026（2026.05） | 统计归因量化 Harness 与 LLM 贡献比：切换最佳 Harness 的增益 ≈ 切换最佳 LLM 的增益 |
 | [Memory-Aware Software Engineering Agents](https://openreview.net/forum?id=WeXF1A3xY8) | KI 2026 AI4SE Workshop（2026.05） | 对 10 个生产级 SE harness 的 feature 级分析，发现 0/10 原生提供 episodic memory 或 temporal versioning |
 | [A Survey on Agent Skills](https://openreview.net/forum?id=S184SW2SPX) | ACL ARR 2026（2026.05，审稿中） | 将 agent skills 形式化为"外化的过程性知识"，给出五维 taxonomy |
@@ -72,6 +72,9 @@
 | [Tuning the Harness, Not the Model](https://www.langchain.com/blog/tuning-the-harness-not-the-model-a-nemotron-3-ultra-playbook) | LangChain（2026.07） | 开源模型只调 harness 即逼近 Opus 4.8（0.86 vs 0.87），成本约 1/10；harness-vs-weights 诊断、core vs profile 切分、signal placement |
 | [How Middleware Lets You Customize Your Agent Harness](https://www.langchain.com/blog/how-middleware-lets-you-customize-your-agent-harness) | LangChain（2026.03） | 六钩子中间件 taxonomy；中间件两份工作（代码强制 vs 上下文工程）；PII 确定性合规——"无法用提示词实现 HIPAA 合规" |
 | [Your Harness, Your Memory](https://www.langchain.com/blog/your-harness-your-memory) | LangChain（2026.04） | 记忆是 harness 核心职责而非外挂；闭源 harness/API 后的 compaction = 交出记忆控制权与平台锁定；Claude Code 泄露 512k 行即 harness 规模 |
+| [Harness Engineering for Self-Improvement](https://lilianweng.github.io/posts/2026-07-04-harness/) | Lilian Weng（2026.07） | 上半年最系统单篇综述：prompt→context→workflow→harness→optimizer 演进框架，梳理 ACE/MCE/Self-Harness/AHE/SIA，对核心论点给能力区间细化 |
+| [HarnessX: A Composable, Adaptive, and Evolvable Agent Harness Foundry](https://arxiv.org/abs/2606.14249) | arXiv（2026.06） | typed primitives + substitution algebra 组装，harness 作为运行时可演化类型化对象，与 Self-Harness 互补 |
+| [ToFu: A White-Box, Token-Efficient Agent Harness for Researchers](https://arxiv.org/abs/2607.11423) | arXiv（2026.07） | 白盒、token 高效、面向研究的 agent harness，orchestration 可 inspect/modify/evaluate，提供可检验实验平台 |
 
 ---
 
@@ -234,6 +237,8 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Harness 与模型权重的协同优化有考量（是否只优化 Harness 而忽略了权重联合优化的潜力，参考 SIA）
 - [ ] 错误→规则的 ratchet 机制存在（Agent 的每次失败都被固化为一条可追溯的 Harness 规则，而非停留在"偶发事故"——参考 Osmani）
 - [ ] 可剥离边界按"例行支撑 vs 约束性治理"区分（例行能力支撑随模型进步可删/迁回模型，约束性治理如 PII/权限/预算必须留在外部——参考 Component Taxonomy Survey 的模型-harness 共演化）
+- [ ] 模型版本升级触发标准化审计 SOP（冻结基线→分类→跨模型 holdout 验证→ratchet 触发条件），区分例行支撑（可删）与约束治理（不可删）
+- [ ] Harness 删改遵循跨模型 holdout 验证 + 可证伪合约（每次删改附失败证据/根因/预期影响，下一轮用任务结果验证——AHE 决策可观测性）
 
 **评估标准**：
 - 1 星：无任何熵管理意识
@@ -342,7 +347,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 跨 context window 的长任务有结构化状态交接（结构化进度文件 + git 回滚，非依赖模型记忆——参考 Effective Harnesses for Long-Running Agents）
 - [ ] 有模型专属 Harness 配置机制（不同模型家族有不同提示词/工具/中间件配置，非"一套配置适配所有模型"——参考 Tuning Deep Agents 的 Harness Profiles）
 - [ ] Harness 扩展通过可组合中间件实现（每条规则是独立模块，新增/删除一行配置即可——参考 How to Build a Custom Agent Harness 的中间件式扩展范式）
-- [ ] 缺失能力有 agent 自补机制（agent 遇到缺失工具时能自行编写 helper 而非阻塞报错，参考 Bitter Lesson 的 self-heal loop——与 ratchet 的"加规则"形成"减 helper"对照）
+- [ ] 缺失能力有 agent 自补机制（agent 遇到缺失工具时能自行编写 helper 而非阻塞报错，参考 Bitter Lesson 的 self-heal loop）
 - [ ] Harness 改动遵循 core vs profile 切分纪律（每条改动追问"能往 core 推多远"，模型专属部分隔离到 profile，让 core 保持干净可跨模型复用——参考 Nemotron Playbook）
 
 **评估标准**：
@@ -444,6 +449,8 @@ Agent 拥有完整的文件系统访问和命令执行权限，无任何操作�
 为当前模型版本的特定行为构建了大量定制化中间件（如"模型总是忘记 X，所以加一层提醒"）。当模型更新后，这些中间件不仅无效，还可能干扰新模型的自然能力。
 **设计 Harness 时要保持可剥离性（rippable）——当模型足够聪明不需要某些逻辑时，应能轻松移除。**
 
+**正向做法**：用模型-harness 共演化划线——"例行支撑"（提示词补丁、格式脚手架）随模型变强可删，"约束治理"（PII/权限/预算）永远不删。删的触发条件是 ratchet 心法："只在强模型让某约束变多余时才删它"，且删改前在 holdout 任务集上跨模型验证。完整操作步骤见 implementation-guide §9「模型升级时的 Harness 审计 SOP」。
+
 ### 反模式 8：Harness 不可复现
 
 在基准测试或生产报告中只披露模型名称和分数，不公开 Harness 配置。根据 Binding Constraint Thesis，Harness 配置方差可能超过模型选择方差——两个团队用同一模型可能得到完全相反的排名，只因 Harness 不同。
@@ -466,6 +473,12 @@ Agent 拥有完整的文件系统访问和命令执行权限，无任何操作�
 在生成端大量投入（更强的 Agent、更激进的自动化 Loop），却让人工审查保持手动的、串行的旧流程。Anthropic 内部数据显示，当 80%+ 的代码由 Claude 编写、人均产出增长 8 倍后，**整体吞吐量开始被人工审查环节卡住**——Agent 产出的代码堆积在审查队列里，生成端的加速被审查端的瓶颈完全吞噬（Amdahl's law）。
 
 **正确做法**：把审查环节也纳入 Harness 设计——自动化 reviewer（maker/checker 分离）、结构化审查清单、回归 eval 自动门禁。投资比例应随生成端自动化程度同步向审查端倾斜，否则"让 Agent 写得更多"只是把拥堵从写代码挪到了等审查。
+
+### 反模式 12：静态迁移
+
+模型升级或 `/switch` 换模型时，把旧 Harness 整体照搬，不重跑改进循环。LangChain 实测：同一 Harness，Codex 跑 66.5%，Claude Opus 4.6 只有 59.6%（当时模型快照）——"because we didn't run the same Improvement Loop with Claude"。Self-Harness 也证明不同 base model 需要不同的 model-specific harness instructions。
+
+**正确做法**：换模型 = 弱点分布变了，旧 remediation 多半错配。必须重跑 improvement loop，用 core vs profile 切分——core（通用）保留，profile（模型专属）按新模型重调，在 holdout 上跨模型验证后再合并。
 
 ---
 
@@ -541,3 +554,5 @@ Level X（一句话总结）
 | 2026-07-06 | v1.8 | 补充 3 个权威来源（共 54 个）：MUSE 多模态统一 Harness（arXiv）、Is Grep All You Need 检索场景实证（PwC）、Bitter Lesson of Agent Harnesses 极简主义心法（browser-use）；D8 工作流编排新增 agent 自补缺失工具（self-heal loop）检查项 |
 | 2026-07-13 | v1.9 | 补充 6 个权威来源（共 60 个）：AI Harness Engineering 运行时基座 + H0–H3 阶梯（arXiv）、Agent Harness 六元组完整性 Survey（Preprints）、Harness 组件分类/共演化 Survey（Preprints）3 篇学术论文；Nemotron 3 Ultra Playbook、Middleware 定制、Your Harness Your Memory（LangChain）3 篇行业文章；D2 新增记忆所有权/可移植性、D4 新增共演化（例行迁入/治理留存）、D5 新增确定性合规（PII/HIPAA）、D8 新增 core vs profile 切分、D9 新增 trace-based episode package 五项检查项 |
 | 2026-07-14 | v1.10 | D8 工作流编排新增维护循环内容外部化检查项（循环跑什么写成文件、运行时可优化，非硬编码在调度配置或每次手写——参考 Claude Code `loop.md`：Skills+State+Automations 三个原语交汇落点，与 implementation-guide 第四层对齐） |
+| 2026-07-15 | v1.11 | 新增「模型升级审计」主题（针对 GLM5.2/DeepSeek V4 + `/switch` 场景）：D4 熵管理新增 2 条检查项（升级审计 SOP + 跨模型 holdout/可证伪合约）；反模式 7 补正向做法；新增反模式 12（静态迁移）。与 implementation-guide §9 升级审计 SOP、article 原则四可剥离性论述联动 |
+| 2026-07-15 | v1.12 | 文档质量清理：合并 article 内部冗余（6.8↔5.10、7.5↔6.12、原则四↔4.4）；为 5.15/5.7/6.11 基准表加研究快照版本说明、Better Harness 去 Sonnet 4.6 版本号、反模式 12 加快照注；补 Lilian Weng《Harness Engineering for Self-Improvement》(2026.07)；结语补"护城河"论点的能力区间限定；P2 收尾：精简 D8 一处 ratchet 冗余引用、补 ToFu/HarnessX 两篇 2026.06-07 新文献 |
