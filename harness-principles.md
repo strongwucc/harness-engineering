@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.12
-**更新日期**: 2026-07-15
+**版本**: v1.13
+**更新日期**: 2026-07-21
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -75,6 +75,8 @@
 | [Harness Engineering for Self-Improvement](https://lilianweng.github.io/posts/2026-07-04-harness/) | Lilian Weng（2026.07） | 上半年最系统单篇综述：prompt→context→workflow→harness→optimizer 演进框架，梳理 ACE/MCE/Self-Harness/AHE/SIA，对核心论点给能力区间细化 |
 | [HarnessX: A Composable, Adaptive, and Evolvable Agent Harness Foundry](https://arxiv.org/abs/2606.14249) | arXiv（2026.06） | typed primitives + substitution algebra 组装，harness 作为运行时可演化类型化对象，与 Self-Harness 互补 |
 | [ToFu: A White-Box, Token-Efficient Agent Harness for Researchers](https://arxiv.org/abs/2607.11423) | arXiv（2026.07） | 白盒、token 高效、面向研究的 agent harness，orchestration 可 inspect/modify/evaluate，提供可检验实验平台 |
+| [The importance of Agent Harness in 2026](https://www.philschmid.de/agent-harness-2026) | Philipp Schmid（2026.01） | Harness 即操作系统的类比（Model=CPU/Context=RAM/Harness=OS/Agent=App）；context durability 为新瓶颈——静态榜单测不出长程漂移；"Harness is the Dataset"——竞争优势转向捕获的轨迹数据 |
+| [Agent Engineering in 2026: The Harness Is the Product](https://markdown.engineering/blog/2026-04-12-agent-engineering-2026) | Markdown Engineering / Noah Greenfield（2026.04） | "restart engineering"论断与 durable stack 七层 artifact taxonomy；veto durability（负面知识）、replay safety（resume 不破坏现实）、显式 stop conditions；Georgiev 16→2 Agent 生产案例 |
 
 ---
 
@@ -180,6 +182,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 启用了 KV-cache 优化（稳定前缀 + 可变后缀架构）
 - [ ] Agent 记忆具备情景维度与时序版本（episodic memory / temporal versioning）——当前 0/10 生产级 harness 缺失这两项，是长任务可靠性的关键缺口（参考 Memory-Aware SE Agents）
 - [ ] 记忆所有权与可移植性有考量（记忆归项目/用户所有，compaction 与长期记忆不锁定在闭源 harness 或厂商 API 后；换模型/换 harness 能带走记忆——参考 Your Harness, Your Memory）
+- [ ] 负面知识有独立持久化（被否决/取消的决策作为独立状态保存，如 decisions.md 带日期与理由；不与即时工作集、事实摘要混放，防止会话重启后被重新推导——参考 The Harness Is the Product 的 veto durability）
 
 #### D2.4 Isolate（隔离）
 
@@ -349,6 +352,8 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Harness 扩展通过可组合中间件实现（每条规则是独立模块，新增/删除一行配置即可——参考 How to Build a Custom Agent Harness 的中间件式扩展范式）
 - [ ] 缺失能力有 agent 自补机制（agent 遇到缺失工具时能自行编写 helper 而非阻塞报错，参考 Bitter Lesson 的 self-heal loop）
 - [ ] Harness 改动遵循 core vs profile 切分纪律（每条改动追问"能往 core 推多远"，模型专属部分隔离到 profile，让 core 保持干净可跨模型复用——参考 Nemotron Playbook）
+- [ ] 恢复执行遵循 replay safety（从检查点/会话恢复时不重复副作用——副作用包成幂等或隔离，从持久化结果取回而非重算；"resume 不破坏现实"——参考 The Harness Is the Product）
+- [ ] 有显式 stop conditions（done / blocked / awaiting_approval / awaiting_external_event / needs_human_decision / aborted_due_to_budget 等明确终止态，而非"一直跑到 token 耗尽"——参考 The Harness Is the Product）
 
 **评估标准**：
 - 1 星：无工作流，Agent 自由发挥
@@ -480,6 +485,12 @@ Agent 拥有完整的文件系统访问和命令执行权限，无任何操作�
 
 **正确做法**：换模型 = 弱点分布变了，旧 remediation 多半错配。必须重跑 improvement loop，用 core vs profile 切分——core（通用）保留，profile（模型专属）按新模型重调，在 holdout 上跨模型验证后再合并。
 
+### 反模式 13：决策遗失（Veto Loss）
+
+把"否决"只存在对话上下文里，没有落盘成独立持久状态。会话重启、上下文压缩、换 agent 后，模型把一个**已经被取消/拒绝的动作重新推导出来并执行**。这种失败常被误诊为"危险自主性"或"指令遵循差"，实质是**决策遗失（decision loss）**——veto 从未进入 durable state。
+
+**正确做法**：维护一份独立的否决寄存器（如 `decisions.md`），记下被取消的动作、日期、范围和**理由**。带理由的 veto 能跨会话、跨 agent、跨人存活，可被检索、辩护、与新证据比对；没理由的 veto 一旦环境略变就被推翻。配套要求 replay safety：从检查点恢复执行时不重复副作用，否则"否决了但重放又执行了一遍"同样构成决策遗失。核心心法来自 restart engineering——**Agent 不只忘事实，更会忘否决，负面知识与正面摘要同等重要**。
+
 ---
 
 ## 评估输出模板
@@ -556,3 +567,4 @@ Level X（一句话总结）
 | 2026-07-14 | v1.10 | D8 工作流编排新增维护循环内容外部化检查项（循环跑什么写成文件、运行时可优化，非硬编码在调度配置或每次手写——参考 Claude Code `loop.md`：Skills+State+Automations 三个原语交汇落点，与 implementation-guide 第四层对齐） |
 | 2026-07-15 | v1.11 | 新增「模型升级审计」主题（针对 GLM5.2/DeepSeek V4 + `/switch` 场景）：D4 熵管理新增 2 条检查项（升级审计 SOP + 跨模型 holdout/可证伪合约）；反模式 7 补正向做法；新增反模式 12（静态迁移）。与 implementation-guide §9 升级审计 SOP、article 原则四可剥离性论述联动 |
 | 2026-07-15 | v1.12 | 文档质量清理：合并 article 内部冗余（6.8↔5.10、7.5↔6.12、原则四↔4.4）；为 5.15/5.7/6.11 基准表加研究快照版本说明、Better Harness 去 Sonnet 4.6 版本号、反模式 12 加快照注；补 Lilian Weng《Harness Engineering for Self-Improvement》(2026.07)；结语补"护城河"论点的能力区间限定；P2 收尾：精简 D8 一处 ratchet 冗余引用、补 ToFu/HarnessX 两篇 2026.06-07 新文献 |
+| 2026-07-21 | v1.13 | 新增「restart engineering / durable state」主题：补 2 篇深度解读（Philipp Schmid《The importance of Agent Harness in 2026》OS 类比 + context durability + harness-is-the-dataset；Markdown Engineering《The Harness Is the Product》restart engineering + veto durability + replay safety + Georgiev 16→2 案例）；D2.3 新增负面知识持久化检查项、D8 新增 replay safety + 显式 stop conditions 两项检查项；新增反模式 13（决策遗失/Veto Loss）。与 article §2.4/§6.15/§12/结语、implementation-guide「状态可恢复」全局原则联动 |

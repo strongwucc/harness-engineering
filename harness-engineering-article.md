@@ -47,6 +47,17 @@ Harness 是"Agent 中除模型之外的一切"。它是一个系统的设计与�
 
 此后这一结论被两篇 2026 年的系统综述进一步坐实并深化。Li 等人的《Agent Harness Engineering: A Survey》（TMLR 投稿）把 Harness 分解为 **ETCLOVG 七层**（执行环境 / 工具接口 / 上下文管理 / 生命周期编排 / 可观测性 / 验证 / 治理），并映射了 **170+ 个开源项目**——证明这不再是一两家公司的经验，而是整个生态的共识结构。Guo 等人（华为）的《From Question Answering to Task Completion》则把"Agent = 模型 + 执行 Harness"作为统一切入点，提出**四范式演进**（提示词 → 上下文/工作流 → Harness → 模型原生训练与协同进化），并用 SWE-bench、Terminal-Bench 2.0、WebArena 三大基准的对照数据量化了"同模型不同 Harness"的差距。
 
+### 2.4 一个更精确的比喻：Harness 是操作系统
+
+"马具"比喻抓住了"约束与引导"，但低估了 Harness 的复杂度——它不只是缰绳，而是一整套被管理的运行时基础设施。Philipp Schmid（前 Google DeepMind、Hugging Face）给出了一个更贴切的类比：
+
+- **模型是 CPU**——提供原始算力
+- **上下文窗口是 RAM**——有限、易失的工作内存
+- **Harness 是操作系统**——策划上下文、处理"启动序列"（提示词、钩子）、提供标准驱动（工具处理）
+- **Agent 是应用程序**——跑在 OS 之上的具体用户逻辑
+
+这个类比点出了 Harness 与 Agent 框架的关键区别：框架只提供建筑块（工具、循环实现），Harness **batteries included**——自带提示词预设、工具调用的 opinionated 处理、生命周期钩子、开箱即用的规划/文件系统/子 Agent 能力。Claude Code、Codex 这类 CLI 正是这种"通用 Harness"的雏形。把它理解成 OS 而非缰绳，才能解释为什么 Harness 会越做越厚——第八章的知识引擎、第十二章的评估工程，本质上都是"操作系统能力"的扩张。
+
 ---
 
 ## 三、三年的范式迁移：严谨从未消失，它只是在搬家
@@ -742,6 +753,18 @@ browser-use 团队的实践：从数千行 element extractor / DOM indexer / cli
 
 这与 6.13 的 ratchet 心法形成有趣对照——**ratchet 是加法（每次错误固化成一条新规则），Bitter Lesson 是减法（每个 helper 都是可以让 agent 自己写的抽象）**。两者的交汇点是 Self-Harness（3.5）：当 agent 能自主编辑自身 harness，预先穷尽所有工具和规则既不可能也无必要。最好的 harness 可能是最薄的那一层——给模型它训练过的底层接口，加一个让它自己改的权限，然后退开。
 
+### 6.15 Restart Engineering：把"重启"当一等公民来设计
+
+长任务 Agent 最被低估的失败模式不是"不会做"，而是**"会做，但重启后忘了已经做过/已经否决过"**。2026 年 4 月，operator 综述《The Harness Is the Product》把这一年最强系统的实践收敛成一个论断：**2026 年的 Agent 工程是 restart engineering（重启工程）**——真正决定可靠性的不是提示词，而是能跨会话存续的文件、检查点、审批门和知道何时停止的运行时。设计的基本单位是**交接（handoff），不是提示词**。
+
+三个最可操作的纪律：
+
+- **Veto durability（否决持久化）**：Agent 不只忘事实，更会**忘否决**——一个被取消或拒绝的动作，若只活在对话上下文里，会话一重启就会被重新推导出来。解法是把"被否决的决策"作为独立持久状态保存（典型实践是 `decisions.md`，记下日期、范围、理由）。一条带理由的 veto 能跨会话、跨 agent、跨人存活；没有理由的 veto 是脆弱的。这与 6.10 的"状态落盘"一脉相承，但强调的是**负面知识（negative knowledge）**——团队普遍过度投资于存"摘要"，却忘了存"别再试这条路"。
+- **Replay safety（恢复不破坏现实）**：从一个检查点恢复执行时，绝不能重复副作用——同一个 API 调用打两次、同一个补丁写两遍、同一次部署重放一遍。真正的持久化不是"我们存了些状态"，而是 **"resume does not corrupt reality"**。LangGraph 的 durable execution 把副作用包成幂等、隔离，恢复时从持久化结果取回而非重算——这是"真运行时"区别于"玩具循环"的分水岭。
+- **显式 stop conditions**："继续跑"不是一个停止条件。生产 Agent 需要明确的终止态：`done` / `blocked` / `awaiting_approval` / `awaiting_external_event` / `needs_human_decision` / `aborted_due_to_budget`。一个不会干净停止的运行时不是自主，是失控。
+
+这条纪律的实证支撑来自 Daniel Georgiev 的生产报告：他用 16 个 Agent 跑了十周后，**换成了 2 个**——教训不是 Agent 没用，而是**编排复杂度的复合速度快于吞吐量**：每一次交接都是一次上下文丢失、重复劳动、"现实当前是什么"的分歧机会。这与 5.4（Vercel 减法）和 6.14（Bitter Lesson）形成三角印证：生产瓶颈通常是**状态纪律**，而非缺少更多 specialist。
+
 ---
 
 ## 七、Agent 安全防护
@@ -908,6 +931,8 @@ Harness 工程代表了软件工程师工作内容的真正演进：
 
 "行为胜过基准"（behavior beats benchmarks）的理念正在兴起。不是 MMLU 分数，而是 Agent 完成真实世界任务的比率，以及从失败中恢复的优雅程度。特别是**不可验证的奖励**：机器能判断代码能否编译，但"这段文字写得好不好？""这个设计美不美？"——如何评分？"如何评估"本身正在成为一门独立的工程学科。
 
+Philipp Schmid（前 Google DeepMind）点出了基准的根本盲区：**静态榜单上头部模型的差距在缩小，但这可能是错觉**——真正的差距在任务越长越复杂时才显现，体现为 **context durability（上下文耐久度）**：模型在执行几百次工具调用的过程中，还能多好地遵循指令。一个 1% 的榜单差异，无法检测"模型在第 50 步之后漂移出轨道"的可靠性。这把评估工程的命题从"测单次能力"推进到"测长程耐久"——而长程耐久，恰恰是 Harness（而非模型本身）最能拉开差距的地方。
+
 2026 年，这门学科的方法论快速成型。Anthropic 的《Demystifying evals for AI agents》提出了一个 8 步评估设计框架，并区分两类评估：**capability evals**（押注未来模型能力，低通过率起步合理）与 **regression evals**（应维持接近 **100%** 通过率，专门捕获回退）。该文用一个案例量化了 Harness 对评估结果的决定性影响：Opus 4.5 在 CORE-Bench 上因 Harness 的刚性评分和任务歧义被**低估至 42%**——同样的模型，换个 Harness 评估，分数天差地别。LangChain 的《Better Harness: A Recipe for Harness Hill-Climbing with Evals》则把机器学习的数据纪律移植过来：6 步迭代 recipe（标记 eval → 训练/holdout 划分 → 基线 → 优化 → 人工审查 → 回归维护），并强调 **holdout set 是真实泛化的代理**——没有 holdout，你只是在让 Harness 过拟合到已知用例。
 
 2026 年 5 月，《AI Harness Engineering: A Runtime Substrate》把"可评估性"再往前推了一步——提出 **trace-based 评估协议**：把每一次 Agent 运行转成一个可审计的 **episode package**，里面不只是最终补丁，而是包含复现日志、失败归因、确定性需求检查和结构化验证报告。关键在于，这个 episode package 的"证据结构"随 harness 等级（H0–H3，见 4.4）系统化变化——低等级 harness 只能产出"一个补丁"，高等级 harness 能产出"为什么这个补丁是对的"的完整证据链。这把评估工程从"给结果打分"推进到了"让过程可审计"——而后者正是生产级 Agent 区别于 Demo 的本质（4.4 的六元组完整性结论也印证了这一点：能进生产的系统都补齐了评估接口 V 这一格）。
@@ -984,6 +1009,8 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 > **2026 年上半场的竞争优势来自基础设施（Harness），下半场的竞争来自自动化（Loop）。模型是商品，Harness 是护城河，Loop 是引擎。**
 
 需要一处分层细化："模型是商品"是**结构性判断**——Agent 的可靠性主要来自 Harness 而非模型，这点未被推翻。但"Harness 是护城河"有一条**能力区间限定**：2026 年 7 月 Lin 等人《Harness Updating Is Not Harness Benefit》实测 harness 收益**非单调**——弱模型获益少、中等能力模型获益最多、强模型区间收益反降；同期 Lilian Weng 的综述也指出模型智能仍是核心约束。所以更精确的说法是：**在中等能力模型区间，Harness 是最划算的护城河；模型足够强时，边际收益向模型本身倾斜。** 这不削弱"可剥离、可审计、可复现"的工程结论——反而强化它：正因强模型区间 harness 收益递减，定期审计、删掉死重才更要紧。
+
+还有一条更前瞻的线索：Schmid 指出**竞争优势正在从提示词转移到 Harness 捕获的轨迹数据**——每一次 Agent 在长流程后段"跟丢指令"的失败，都是训练下一代模型的现成数据。训练环境与推理环境正在收敛，**"Harness is the Dataset"**：谁拥有最多可审计、可标注的真实长程轨迹，谁就能训练出"不在第 100 步变累"的模型。这预示 Harness 不只是护城河，还可能是下一代模型能力的数据入口——而能产出可审计轨迹（第十二章的 episode package）的 Harness，恰好同时服务这两个角色。
 
 而最好的设计——无论是 Harness 还是 Loop——都关乎"**如何让不需要的东西容易被移除**"。当 Claude 5.0 发布时，你为 Claude 4.5 构建的上下文重置逻辑可能变成死重。当 Loop 的某个自动化步骤被模型原生能力取代时，你应该能一行配置删掉它。
 
@@ -1067,3 +1094,5 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Harness Engineering: What Every AI Engineer Needs to Know in 2026](https://ai.gopubby.com/harness-engineering-what-every-ai-engineer-needs-to-know-in-2026-0ab649e5686a)——三大阵营、三种架构的比较分析
 - [The Bitter Lesson of Agent Harnesses](https://browser-use.com/posts/bitter-lesson-agent-harnesses)（Gregor Zunic / browser-use，2026.04）——致敬 Sutton 经典：helpers 也是抽象，删掉它们让 agent 写自己需要的；CDP 直连 + self-heal loop 的 ~600 行极简 harness 实践，被 AHE 与 Binding Constraint Thesis 两篇论文正式引用
 - [Harness Engineering for Self-Improvement](https://lilianweng.github.io/posts/2026-07-04-harness/)（Lilian Weng，2026.07）——上半年最系统的单篇 harness 综述：prompt→structured context→workflow→harness→optimizer code 演进框架，梳理 ACE/MCE/Self-Harness/AHE/SIA 全系，并对核心论点给出能力区间细化
+- [The importance of Agent Harness in 2026](https://www.philschmid.de/agent-harness-2026)（Philipp Schmid，2026.01）——Harness 即操作系统的类比（Model=CPU / Context=RAM / Harness=OS / Agent=App）；context durability 作为新瓶颈（静态榜单测不出第 50 步后的漂移）；"Harness is the Dataset"——竞争优势从提示词转向 Harness 捕获的轨迹数据
+- [Agent Engineering in 2026: The Harness Is the Product](https://markdown.engineering/blog/2026-04-12-agent-engineering-2026)（Markdown Engineering / Noah Greenfield，2026.04）——"restart engineering"论断：2026 Agent 工程的核心是跨会话存续的 durable stack；veto durability（负面知识 / decisions.md）、replay safety（resume 不破坏现实）、显式 stop conditions；Georgiev 16→2 Agent 的生产案例
