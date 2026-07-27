@@ -145,7 +145,11 @@ Manus 团队重写了四次 Agent 框架后得出结论：**KV-cache 命中率�
 
 同期，《SIA: Self Improving AI with Harness & Weight Updates》更进一步：**同时更新 Harness 和模型权重。** 在法律分类、GPU 内核优化和 RNA 去噪三个任务上，联合更新（Harness + 权重）的表现**显著超越纯 Harness 迭代**——说明最好的改进策略是"内外兼修"。
 
-这两篇论文与 AHE（Agentic Harness Engineering，第四章）一起，勾勒了一条清晰的轨迹：
+2026 年 7 月，《Self-Evolving Agent Harnesses via Gated Semantic Quality-Diversity》给这条自动进化路线补上了最关键的一块：**怎么相信一次改进是真的**。自进化 harness 的硬骨头不是"生成改动"，而是"判断哪个改动真的有效"——模型自评的反馈有噪声，一次看似的提升可能是测量假象，或只是对被调过的任务过拟合。这篇论文把"提议改动"和"记功"分开：语言模型负责诊断失败、提补丁，但**所有的采样、测量和显著性检验都由确定性代码完成**，使每一个被记功的改进构造性可信。补丁进入一个按"病理（WHERE × WHY）"而非"任务"索引的质量多样性档案（抗过拟合的归纳偏置），泛化在演进结束后才评分的 sealed test 上衡量——七个领域拿到 +9 到 +15.5pp，且保留了训练增益的 86-147%，说明是真泛化而非记忆。
+
+更值得记下的是一个反直觉的迁移结论：**跨模型迁移的是"诊断—记功"这个 loop，而不是任何一个具体 harness**。换一个模型，主导病理可能变，对应的最优补丁也跟着变；但同一组"病理→补丁"的匹配会在不同模型家族间复现。这恰好为后文反模式 12（静态迁移）提供了学术背书——换模型后直接照搬旧 harness 多半错配，该重跑的是改进 loop 本身。
+
+上述自进化工作（Self-Harness、SIA、Gated QD）与 AHE（Agentic Harness Engineering，第四章）一起，勾勒了一条清晰的轨迹：
 
 ```
 人类设计 Harness → AI 辅助优化 Harness（AHE）→ AI 自主改进 Harness（Self-Harness）→ AI 同时优化 Harness + 模型（SIA）
@@ -607,6 +611,18 @@ MUSE 的贡献是双重的：
 
 这三条纪律共同把 Harness 调优从"凭感觉改提示词"升级为"可归因、可泛化、可迁移"的工程活动——也再次印证了 5.15 的 Binding Constraint Thesis：决定表现的常常是 harness 而非模型。
 
+### 5.18 真实世界怎么配置：2853 个仓库的实证基线
+
+前面 5.1-5.17 讲的都是"领先团队怎么做"。2026 年的论文《Harness Engineering for Agentic AI Coding Tools: An Exploratory Study》（AIware 2026，arXiv v5 更新到 2026.06）补上了另一半图景：**普通开发者实际在怎么配置这些工具**。作者系统性分析了 Claude Code、GitHub Copilot、Cursor、Gemini、Codex 五大工具的配置机制，归纳出从静态上下文到可执行/外部集成的八种配置机制，并在 **2,853 个 GitHub 仓库**上做了实证。
+
+三个最有行动意义的发现：
+
+1. **Context Files 主导，且常常是仓库里唯一的配置机制**。AGENTS.md 正在成为跨工具的互操作标准——一份文件，多个工具都能读。这意味着写好 AGENTS.md 是性价比最高的第一步，与 6.13 的 ratchet 心法、原则一（最小必要干预）完全一致。
+2. **高级机制（Skills、Subagents）采用率很低，且 Skills 大多是静态指令而非可执行脚本**。这呼应 Skill 设计原则：精简的控制信号优于冗长文档——多数团队还停在"写说明"，远没到"写可执行约束"。
+3. **不同工具正在长出不同的配置习惯，Claude Code 用户使用的机制范围最广**。这既是 Claude Code 表达力强的证据，也是个提醒：机制多不等于该全用，工具膨胀（反模式 5）的诱惑在这里也最大。
+
+这项研究给整个领域提供了第一个"开发者实际配置行为"的实证基线，也让前面所有"应该怎么做"有了对照——行业现状距离生产级 Harness（D1-D7 全覆盖）还差得很远，绝大多数仓库连 Skills/Subagents 都还没用上。
+
 ---
 
 ## 六、Harness 的六大核心组件
@@ -765,6 +781,14 @@ browser-use 团队的实践：从数千行 element extractor / DOM indexer / cli
 
 这条纪律的实证支撑来自 Daniel Georgiev 的生产报告：他用 16 个 Agent 跑了十周后，**换成了 2 个**——教训不是 Agent 没用，而是**编排复杂度的复合速度快于吞吐量**：每一次交接都是一次上下文丢失、重复劳动、"现实当前是什么"的分歧机会。这与 5.4（Vercel 减法）和 6.14（Bitter Lesson）形成三角印证：生产瓶颈通常是**状态纪律**，而非缺少更多 specialist。
 
+### 6.16 Harness 自身的可演化性：Behavior Localization
+
+前面六个组件讲的是 harness"运行时"该有什么。2026 年 7 月的《Harness Handbook》提醒我们还有一个被忽视的维度：**harness 本身的代码会不断被改，而"改 harness"的瓶颈不在生成编辑，在定位编辑该落在哪**。
+
+生产级 harness 通常很大、紧耦合、行为分散在几十个文件里，而修改请求描述的是"系统该做什么"，仓库却按文件/模块组织——这个"行为到代码"的映射（behavior localization）要靠人手工恢复，是 harness 演进的中心瓶颈。Handbook 的解法是用静态分析 + LLM 辅助结构化，自动合成一份**以行为为中心的表示**，把每个行为链接到对应的源码位置；再配合 Behavior-Guided Progressive Disclosure（BGPD），从高层行为逐步引导到实现细节，并对照当前源码验证候选位置。在两个开源 harness 上，这种 handbook 辅助的规划改进行为定位和编辑计划质量，且用更少的 planner token——在分散位点、罕见执行路径、跨模块交互上收益最大。
+
+这条组件的实际含义：当 harness 成长到一定规模，"能让 agent 或人快速找到某条规则在哪实现"和"这条规则本身"同等重要。它和 6.13 的 ratchet（规则会持续增加）、6.15 的 restart engineering（状态要落盘可恢复）是同一个主题的不同切面——**harness 不只要设计得好，还要演化得动**。这与第十二章的 Meta-Harness、3.5 的自进化 Harness 一起，把"可维护性"推上了 harness 工程的一等位置。
+
 ---
 
 ## 七、Agent 安全防护
@@ -811,6 +835,8 @@ policies:
 PII 脱敏、内容审核、HIPAA 这类要求"每一次都必须触发"的策略，机制已在 6.12（中间件钩子的确定性合规）讲清——模型可能 99 次照办"请先脱敏"，第 100 次漏一次就是数据泄露，所以只能活在 `before_model`/`after_model` 钩子里用代码保证。LangChain 的总结：**"You can't prompt your way to HIPAA compliance."（你无法用提示词实现 HIPAA 合规。）**
 
 这里只补它与 7.3、7.4 的阶梯关系：**7.3** 管"单次危险操作要审批"，**7.5** 管"每条数据流过都要合规"，**7.4** 管"多个用户之间的权限边界"。三者都拒绝把安全托付给模型的概率性判断，都要求由 Harness 层的确定性代码强制执行。
+
+2026 年 7 月的《From Prompts to Contracts》给这条原则提供了最干净的量化对照。在同一个企业问答场景上：**只靠提示词约束时，推荐用语违规和内部轨迹泄露会漏到读者端；换成代码所有的 validation（围绕一个"可替换的组合边界"组织），harness 把这两类违规全部挡住，且保留全部 utility（120/120）**；而一个外挂的 guardrail 虽然也能挡住违规，却因 over-refuse 把可用性压到 88/120。结论很硬——**同样达到"安全"，只有代码所有的强制执行能同时保住安全和可用**：提示词两头不靠，外挂 guardrail 牺牲可用性。这正是"无法用提示词实现合规"的实证版本，也把确定性合规的边界从"PII/审核"扩到了"可审计的契约执行"（answer contracts、entity routing、output hygiene 都可被代码验证，且跨模型替换仍成立）。
 
 ---
 
@@ -984,6 +1010,18 @@ NLAH（Natural-Language Agent Harnesses）则从另一个角度切入：**Harnes
 
 这个论点与 2026 年行业共识高度一致——模型是商品，Harness 是护城河——但它更进一步：**如果你不公开 Harness 配置，你的基准测试结果就没有意义。** 这预示着 Harness 工程的下一个前沿不仅是"设计更好的 Harness"，更是"让 Harness 可比较、可复现、可审计"。
 
+### Harness 会消失吗：Bitter Lesson 与共演化
+
+每当新一代模型发布，就会有一轮"模型够强了，是不是不需要这么多 harness"的讨论。这个直觉有学术血脉，但需要拆开看。
+
+它源自 Rich Sutton 的 Bitter Lesson：手写的人类领域知识，长期都会输给"靠算力扩展的通用方法"。把这条搬到 agent 上，[Gregor Zunic](https://browser-use.com/posts/bitter-lesson-agent-harnesses)（browser-use）和一批技术债分析都指出：**为当前模型弱点打的补丁——分段续写的 sprints、格式提醒、手写的 procedural guidance——确实是技术债，模型一升级就多余**。Anthropic 自己在 [Managed Agents](https://www.anthropic.com/engineering/managed-agents) 里也承认"harnesses encode assumptions that go stale as models improve"。行业里能观察到新模型发布后，之前维持长任务连贯的组件被整个删掉——模型自己能撑两小时。这一层，质疑成立。
+
+但"不需要 harness"是过度推论，把两件不同的事混成了一件。[Component Taxonomy Survey](https://www.preprints.org/manuscript/202606.2203) 给过最精确的切分：harness 里的**例行支撑**（提示词脚手架、格式补救）会随模型变强迁回权重；但**约束性治理**（权限、PII、合规、预算、可观测性、状态恢复）不会——后者不是"模型还不够强"，而是"不该交给概率性判断"。证据是硬的：[From Prompts to Contracts](https://arxiv.org/abs/2607.08028) 量化出约束性验证只能由代码所有（utility 120/120），提示词和外挂 guardrail 都做不到（88/120）；[Binding Constraint Thesis](https://openreview.net/forum?id=ffKHSraOIK)、[Harness-Bench](https://arxiv.org/abs/2605.27922) 和密歇根大学的[统计归因](https://openreview.net/forum?id=QI8z3skBwt) 三处独立实证都说同一句话——harness 配置的方差，至少不亚于模型选择的方差。
+
+更值得关注的是真正的趋势：**harness 不是在消失，而是在从"人类手写"转向"模型自改写"**。Self-Harness、AHE、[HASE](https://arxiv.org/abs/2607.03935)、Gated QD 都是这个方向——harness 工程师的工作从"写规则"变成"写让模型改规则的 loop"。甚至 [Better Harnesses, Smaller Models](https://arxiv.org/abs/2607.08938) 证明方向可逆：把任务难度从模型**迁入** harness，小模型 + 适配 harness 就能追上大模型，成本降约 90%。
+
+所以对"模型变强，harness 要不要继续投"的正确回答是：**继续投，但投在不会随模型变强而贬值的那一层**。可剥离性（反模式 7）就是把这两层分开的工程纪律——例行支撑做成可删的，约束治理做成不可删的。赌"模型会强到不需要任何外部约束"，和所有现有证据相悖。
+
 ---
 
 ## 结语
@@ -1059,6 +1097,13 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [A Survey of Harness Component Taxonomy, Evaluation, and Model](https://www.preprints.org/manuscript/202606.2203)（Preprints，2026.06）——结构/匹配/动态三层分析；提出模型-harness 双向共演化（例行支撑迁入权重，约束性治理留在外部），为"可剥离性"划出精确边界
 - [HarnessX: A Composable, Adaptive, and Evolvable Agent Harness Foundry](https://arxiv.org/abs/2606.14249)（arXiv，2026.06）——用 typed harness primitives + substitution algebra 组装，把 harness 当作运行时可演化的类型化一等对象（与 Self-Harness 互补）
 - [ToFu: A White-Box, Token-Efficient Agent Harness for Researchers](https://arxiv.org/abs/2607.11423)（arXiv，2026.07）——白盒、token 高效、面向研究的 agent harness，orchestration 可 inspect/modify/evaluate，为 harness 实验提供可检验平台
+- [Harness Engineering for Agentic AI Coding Tools: An Exploratory Study](https://arxiv.org/abs/2602.14690)（arXiv / AIware 2026，2026.02，v5 2026.06）——系统性分析 Claude Code/Copilot/Cursor/Gemini/Codex 的八种配置机制，2853 个 GitHub 仓库实证：Context Files 主导、AGENTS.md 成跨工具互操作标准、高级机制采用率低、Claude Code 用户机制范围最广
+- [From Prompts to Contracts: Harness Engineering for Auditable Enterprise LLM Agents](https://arxiv.org/abs/2607.08028)（arXiv，2026.07）——把 prompt 承载的原型重构为可审计架构，确定性行为移入 code/manifests/schemas/validation；代码所有的强制执行保留全部 utility（120/120），外挂 guardrail 因 over-refuse 仅 88/120
+- [Harness Handbook: Making Evolving Agent Harnesses Readable, Navigable, and Editable](https://arxiv.org/abs/2607.13285)（arXiv，2026.07）——behavior localization 是 harness 演进瓶颈；以行为为中心的表示 + Behavior-Guided Progressive Disclosure，用更少 token 改进行为定位与编辑计划质量
+- [Self-Evolving Agent Harnesses via Gated Semantic Quality-Diversity](https://arxiv.org/abs/2607.13683)（arXiv，2026.07）——分离 propose/credit，确定性代码做显著性检验，按病理（WHERE×WHY）索引抗过拟合，sealed test 七领域 +9~15.5pp；跨模型迁移的是 diagnose-and-credit loop 而非具体 harness
+- [Harness-Bench: Measuring Harness Effects across Models in Realistic Agent Workflows](https://arxiv.org/abs/2605.27922)（arXiv，2026.05）——首个诊断级 harness 效应基准，106 任务 5194 轨迹，证明 model-harness 配对间完成度/质量/效率/失败模式差异显著；提出 execution-alignment failure（合理推理与工具反馈脱钩），主张能力须报"model+配置"层面
+- [Harness-Aware Self-Evolving (HASE): Co-Evolving Model Weights, Harness, and Task Solutions](https://arxiv.org/abs/2607.03935)（arXiv，2026.07）——单模型在同一 agentic loop 里既出解又改 harness，Qwen3-8B+HASE 匹配 GPT-OSS-120B+Claude Code，证明 harness 与解可通过统一过程共优化
+- [Better Harnesses, Smaller Models: Building 90% Cheaper Agents via Automated Harness Adaptation](https://arxiv.org/abs/2607.08938)（arXiv，2026.07）——任务难度可从模型迁入 harness，SLM+适配 harness 恢复 89.7% LLM 表现且仅 4% 成本；反证"harness 补偿模型"方向，21 个 task-SLM 对中 16 个显著提升
 
 ### 官方资源
 - [2026 Agentic Coding Trends Report](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf)（Anthropic）

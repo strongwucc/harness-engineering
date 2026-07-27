@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.13
-**更新日期**: 2026-07-21
+**版本**: v1.14
+**更新日期**: 2026-07-27
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -77,6 +77,13 @@
 | [ToFu: A White-Box, Token-Efficient Agent Harness for Researchers](https://arxiv.org/abs/2607.11423) | arXiv（2026.07） | 白盒、token 高效、面向研究的 agent harness，orchestration 可 inspect/modify/evaluate，提供可检验实验平台 |
 | [The importance of Agent Harness in 2026](https://www.philschmid.de/agent-harness-2026) | Philipp Schmid（2026.01） | Harness 即操作系统的类比（Model=CPU/Context=RAM/Harness=OS/Agent=App）；context durability 为新瓶颈——静态榜单测不出长程漂移；"Harness is the Dataset"——竞争优势转向捕获的轨迹数据 |
 | [Agent Engineering in 2026: The Harness Is the Product](https://markdown.engineering/blog/2026-04-12-agent-engineering-2026) | Markdown Engineering / Noah Greenfield（2026.04） | "restart engineering"论断与 durable stack 七层 artifact taxonomy；veto durability（负面知识）、replay safety（resume 不破坏现实）、显式 stop conditions；Georgiev 16→2 Agent 生产案例 |
+| [Self-Evolving Agent Harnesses via Gated Semantic Quality-Diversity](https://arxiv.org/abs/2607.13683) | Luo et al.（2026.07） | 分离 propose/credit + 确定性显著性检验，credited improvement 构造性可信；跨模型迁移的是 diagnose-and-credit loop 而非具体 harness |
+| [Harness Handbook](https://arxiv.org/abs/2607.13285) | Wang et al.（2026.07） | behavior localization 是 harness 演进瓶颈；behavior-centric 表示 + BGPD，用更少 planner token 改进定位与编辑计划质量 |
+| [From Prompts to Contracts](https://arxiv.org/abs/2607.08028) | Ahn & Kim（2026.07） | 代码所有的 validation 在可替换 composition boundary 强制契约；120/120 utility vs 外挂 guardrail 88/120，证明只有代码强制能同时保安全与可用 |
+| [Harness Engineering for Agentic AI Coding Tools](https://arxiv.org/abs/2602.14690) | Galster et al. / AIware 2026（2026.02，v5 2026.06） | 2853 仓库实证：八种配置机制，Context Files 主导，AGENTS.md 成跨工具互操作标准，Claude Code 用户机制范围最广 |
+| [Harness-Bench](https://arxiv.org/abs/2605.27922) | Yao et al.（2026.05） | 首个诊断级 harness 效应基准，5194 轨迹证 model-harness 配对间差异显著；execution-alignment failure 概念 |
+| [HASE](https://arxiv.org/abs/2607.03935) | Luo et al.（2026.07） | 单模型同一 loop 出解+改 harness，权重-harness-解共演化，小模型匹配大模型 |
+| [Better Harnesses, Smaller Models](https://arxiv.org/abs/2607.08938) | Yang et al.（2026.07） | 任务难度从模型迁入 harness，SLM 恢复 89.7% LLM 表现仅 4% 成本；harness 补偿模型的量化反证 |
 
 ---
 
@@ -99,6 +106,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Git 提交规范有明确定义
 - [ ] 工作流路径有清晰说明（新功能 / Bug 修复各走什么流程）
 - [ ] 指南文件保持精简（pilot's checklist 而非 style guide），每条规则可追溯到一次真实失败（ratchet 心法——参考 Osmani Agent Harness Engineering）
+- [ ] 采用 AGENTS.md 作为跨工具互操作标准（一份文件多个工具可读，而非每个工具各写一份冗余指南——参考 Coding Tools 实证的 2853 仓库基线：Context Files 主导配置）
 
 **评估标准**：
 - 1 星：无任何项目级指南文件
@@ -222,7 +230,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D4：熵管理
 
-> 来源：OpenAI（Harness Engineering 三大支柱）+ [Meta-Harness](https://arxiv.org/html/2603.28052v1)（2026.03）+ [Self-Harness](https://arxiv.org/abs/2606.09498)（2026.06）+ [SIA](https://arxiv.org/abs/2605.27276)（2026.05）
+> 来源：OpenAI（Harness Engineering 三大支柱）+ [Meta-Harness](https://arxiv.org/html/2603.28052v1)（2026.03）+ [Self-Harness](https://arxiv.org/abs/2606.09498)（2026.06）+ [SIA](https://arxiv.org/abs/2605.27276)（2026.05）+ [Gated QD](https://arxiv.org/abs/2607.13683)（2026.07）
 > 原则：最被低估的组件。AI 生成的代码库会积累熵——文档偏离现实、命名约定分化、死代码堆积。Harness 本身也会积累熵——2026 年最新研究证明，可以让 Agent 自己管理这种熵。
 
 **检查项**：
@@ -242,6 +250,8 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 可剥离边界按"例行支撑 vs 约束性治理"区分（例行能力支撑随模型进步可删/迁回模型，约束性治理如 PII/权限/预算必须留在外部——参考 Component Taxonomy Survey 的模型-harness 共演化）
 - [ ] 模型版本升级触发标准化审计 SOP（冻结基线→分类→跨模型 holdout 验证→ratchet 触发条件），区分例行支撑（可删）与约束治理（不可删）
 - [ ] Harness 删改遵循跨模型 holdout 验证 + 可证伪合约（每次删改附失败证据/根因/预期影响，下一轮用任务结果验证——AHE 决策可观测性）
+- [ ] 自进化的 credited improvement 由确定性代码记功（分离 propose/credit：模型只诊断失败、提补丁，采样/测量/显著性检验由代码完成，避免模型自评噪声与对训练任务的过拟合——参考 Gated QD）
+- [ ] harness 规则可定位（每条规则能快速找到实现位置，"行为到代码"映射可恢复而非散落文件靠记忆——参考 Harness Handbook 的 behavior localization）
 
 **评估标准**：
 - 1 星：无任何熵管理意识
@@ -281,6 +291,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 敏感数据（密钥、密码）不在代码或 CLAUDE.md 中
 - [ ] 多用户/多租户场景有独立的安全治理层（非仅依赖提示词约束——参考 Harness-MU 的执行钩子强制执行权限边界）
 - [ ] 确定性合规由中间件钩子强制执行（PII 脱敏、内容审核等"每次必触发"的策略用代码实现而非提示词——"无法用提示词实现 HIPAA 合规"，参考 Middleware Customization）
+- [ ] 契约验证围绕可替换的组合边界用代码强制（answer contracts / entity routing / output hygiene 由代码所有，跨模型替换仍成立；外挂 guardrail 会 over-refuse 牺牲可用性，提示词两头不靠——参考 Prompts to Contracts 的 120/120 vs 88/120）
 
 **评估标准**：
 - 1 星：无安全意识，Agent 拥有完全权限
@@ -483,13 +494,19 @@ Agent 拥有完整的文件系统访问和命令执行权限，无任何操作�
 
 模型升级或 `/switch` 换模型时，把旧 Harness 整体照搬，不重跑改进循环。LangChain 实测：同一 Harness，Codex 跑 66.5%，Claude Opus 4.6 只有 59.6%（当时模型快照）——"because we didn't run the same Improvement Loop with Claude"。Self-Harness 也证明不同 base model 需要不同的 model-specific harness instructions。
 
-**正确做法**：换模型 = 弱点分布变了，旧 remediation 多半错配。必须重跑 improvement loop，用 core vs profile 切分——core（通用）保留，profile（模型专属）按新模型重调，在 holdout 上跨模型验证后再合并。
+**正确做法**：换模型 = 弱点分布变了，旧 remediation 多半错配。必须重跑 improvement loop，用 core vs profile 切分——core（通用）保留，profile（模型专属）按新模型重调，在 holdout 上跨模型验证后再合并。Gated QD（2026.07）给这个判断提供了学术背书：跨模型迁移的是 diagnose-and-credit loop 本身，而不是任何一个具体 harness——换模型会改变主导病理和对应的最优补丁，但"病理→补丁"的匹配模式会在不同模型家族间复现。
 
 ### 反模式 13：决策遗失（Veto Loss）
 
 把"否决"只存在对话上下文里，没有落盘成独立持久状态。会话重启、上下文压缩、换 agent 后，模型把一个**已经被取消/拒绝的动作重新推导出来并执行**。这种失败常被误诊为"危险自主性"或"指令遵循差"，实质是**决策遗失（decision loss）**——veto 从未进入 durable state。
 
 **正确做法**：维护一份独立的否决寄存器（如 `decisions.md`），记下被取消的动作、日期、范围和**理由**。带理由的 veto 能跨会话、跨 agent、跨人存活，可被检索、辩护、与新证据比对；没理由的 veto 一旦环境略变就被推翻。配套要求 replay safety：从检查点恢复执行时不重复副作用，否则"否决了但重放又执行了一遍"同样构成决策遗失。核心心法来自 restart engineering——**Agent 不只忘事实，更会忘否决，负面知识与正面摘要同等重要**。
+
+### 反模式 14：Bitter Lesson 误读（以为模型够强就不需要 harness）
+
+把 Sutton 的 Bitter Lesson 推过头，得出"等模型够强，harness 可以整体拆掉"，于是当前不投资 harness 工程化。这个推论混淆了两件不同的事：手写的**例行支撑**（提示词补丁、格式脚手架）确实是技术债、模型升级后多余（见反模式 7）；但**约束治理**（权限、PII、合规、可观测性、状态恢复）不会随模型变强而消失——它不是"模型还不够聪明"，而是"不该交给概率性判断"。
+
+**正确做法**：用 Component Taxonomy Survey 的共演化划线——例行支撑随模型变强可删（且做成可剥离），约束治理永远留在外部代码。From Prompts to Contracts 量化证明约束性验证只能由代码所有（utility 120/120），提示词和外挂 guardrail 都做不到；Binding Constraint Thesis、Harness-Bench 和密歇根大学统计归因三处独立实证都显示 harness 配置方差 ≥ 模型选择方差。真正的趋势不是 harness 消亡，而是从"人类手写"转向"模型自改写"（Self-Harness / AHE / HASE / Gated QD）。完整辩证见 article §12「Harness 会消失吗」。**"现在就不做 harness 工程化"是最大的战略误判**——它赌的是"模型会强到不需要任何外部约束"，与所有现有证据相悖。
 
 ---
 
@@ -568,3 +585,4 @@ Level X（一句话总结）
 | 2026-07-15 | v1.11 | 新增「模型升级审计」主题（针对 GLM5.2/DeepSeek V4 + `/switch` 场景）：D4 熵管理新增 2 条检查项（升级审计 SOP + 跨模型 holdout/可证伪合约）；反模式 7 补正向做法；新增反模式 12（静态迁移）。与 implementation-guide §9 升级审计 SOP、article 原则四可剥离性论述联动 |
 | 2026-07-15 | v1.12 | 文档质量清理：合并 article 内部冗余（6.8↔5.10、7.5↔6.12、原则四↔4.4）；为 5.15/5.7/6.11 基准表加研究快照版本说明、Better Harness 去 Sonnet 4.6 版本号、反模式 12 加快照注；补 Lilian Weng《Harness Engineering for Self-Improvement》(2026.07)；结语补"护城河"论点的能力区间限定；P2 收尾：精简 D8 一处 ratchet 冗余引用、补 ToFu/HarnessX 两篇 2026.06-07 新文献 |
 | 2026-07-21 | v1.13 | 新增「restart engineering / durable state」主题：补 2 篇深度解读（Philipp Schmid《The importance of Agent Harness in 2026》OS 类比 + context durability + harness-is-the-dataset；Markdown Engineering《The Harness Is the Product》restart engineering + veto durability + replay safety + Georgiev 16→2 案例）；D2.3 新增负面知识持久化检查项、D8 新增 replay safety + 显式 stop conditions 两项检查项；新增反模式 13（决策遗失/Veto Loss）。与 article §2.4/§6.15/§12/结语、implementation-guide「状态可恢复」全局原则联动 |
+| 2026-07-27 | v1.14 | 补 7 篇 arXiv/AIware 权威来源（共 70 个）：Self-Evolving Gated QD、Harness Handbook、Prompts to Contracts、Agentic AI Coding Tools 实证、Harness-Bench、HASE、Better Harnesses Smaller Models；D1.1 新增 AGENTS.md 互操作标准检查项、D4 新增 credited improvement 确定性记功 + behavior localization 两项检查项、D4 来源行补 Gated QD、D5.3 新增 composition boundary 契约验证检查项；反模式 12（静态迁移）补 Gated QD 学术背书；新增反模式 14（Bitter Lesson 误读）正面回应"模型变强不再需要 harness"的常见误判。article 新增 §12「Harness 会消失吗：Bitter Lesson 与共演化」辩证小节，与 §3.5/§5.18/§6.16/§7.5 联动 |
