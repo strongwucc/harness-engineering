@@ -982,6 +982,10 @@ Philipp Schmid（前 Google DeepMind）点出了基准的根本盲区：**静态
 
 论文进一步提出 **ROS 2 Harness Profile** 概念：一个部署工件，携带 AI 模型的声明式输出区域、推理预算和运行制度，中间件在 ROS 2/DDS/Zenoh 上强制执行它们。这标志着 Harness 工程从"软件 Agent 的基础设施"扩展到"物理 Agent 的安全关键基础设施"——同一套设计原则（约束、验证、恢复），在物理领域获得了更高的 stakes。
 
+同一时期的另一项工作《HARBOR：面向智能体机器人强化学习的 Harness 框架》从另一端把 Harness 工程引入机器人——不是部署后的运行时中间件，而是**策略训练前的工程流水线**。机器人 RL 长期为算法之外的成本所困：构建任务、设计奖励、调超参都依赖大量专家手工操作，难以规模化。HARBOR 把这条流水线本身建模成一个 harness 问题：给定模拟器代码库与任务规格，由专门化 Agent 通过**标准化命令、持久化 artifact、可执行 gate 与可复用知识**，把高层目标分解为有界阶段自动执行，再借助**去中心化的并行试验与跨运行的经验学习**放大迭代。在 6 个基准、16 个任务（操作/移动/双臂灵巧）上，HARBOR 端到端自动化了仿真 RL 流水线，自动设计的奖励与调优算法达到或超过默认配置，且策略可迁移到真实机器人。
+
+两项工作合在一起，勾勒出机器人 Harness 的完整光谱：**Physical AI Harness 治理"机器人如何安全执行"，HARBOR 治理"机器人策略如何被高效训练"**——同一套 harness 原则（分解、约束、验证、复用）从运行时延伸到了研发时。
+
 ### Meta-Harness：自动化的 Harness 设计
 
 2026 年 3 月的 arXiv 论文《Meta-Harness》提出了一个前沿问题：**Harness 的设计过程本身能否被自动化？** 传统上，工程师根据经验手动调整 Linter 规则、提示词策略和反馈循环。Meta-Harness 探索用文本优化技术端到端地搜索最优 Harness 配置——自动发现哪条规则真正提升了 Agent 成功率，哪条只是噪音。
@@ -1087,6 +1091,7 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Harness Engineering as Categorical Architecture](https://arxiv.org/abs/2605.12239)（arXiv，2026.05）——用范畴论三元组为 Harness 工程建立形式化数学基础，提供编译器函子将 Harness 规格编译到 Swarm/LangGraph/DeerFlow 等运行时
 - [Effective Harness Engineering for Algorithm Discovery with Coding Agents](https://arxiv.org/abs/2605.15221)（arXiv，2026.05）——Vesper 框架研究算法发现场景下的 Harness 设计：少而深优于多而浅，更强模型产生更多评估作弊
 - [Harness Engineering for Physical AI: Robot Middleware Is the Harness Layer](https://arxiv.org/abs/2606.09416)（arXiv，2026.06）——首次将机器人中间件（ROS 2/DDS/Zenoh）形式化为 Physical AI 的 Harness 层，提出 Projection/Isolation/Transfer 三功能
+- [HARBOR: A Harness Framework for Agentic Robot Reinforcement Learning](https://arxiv.org/abs/2606.08610)（arXiv，2026.06）——把机器人 RL 的工程流水线（建任务/设计奖励/调参）建模为 harness 问题：专门化 Agent 经标准化命令、持久化 artifact、可执行 gate、可复用知识把目标分解为有界阶段；去中心化并行试验 + 跨运行经验学习；6 基准 16 任务含 sim-to-real
 - [The Interplay of Harness Design and Post-Training in LLM Agents](https://arxiv.org/abs/2606.25447)（arXiv，2026.06）——扩展 ALFWorld 将 Harness 作为可控设计维度，证明 harness-aware post-training 提升 ID 和 OOD 鲁棒性
 - [Agent Harness Engineering: A Survey](https://openreview.net/forum?id=3hXEPbG0dh)（OpenReview / TMLR Under Review，2026.04）——提出 ETCLOVG 七层 taxonomy（把 Observability 和 Governance 提升为独立架构层），映射 170+ 开源项目，蒸馏 OpenAI/Anthropic/LangChain 生产部署原则
 - [From Question Answering to Task Completion: A Survey on Agent System and Harness Design](https://www.preprints.org/manuscript/202606.1312)（Preprints，2026.06）——华为团队综述，execution harness 六组件分解 + 四范式演进（含 model-harness co-evolution），SWE-bench/Terminal-Bench 2.0/WebArena 三大基准 model-harness 对照量化，提出 value-aware evaluation

@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.14
-**更新日期**: 2026-07-27
+**版本**: v1.15
+**更新日期**: 2026-08-04
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -54,6 +54,7 @@
 | [Harness Engineering as Categorical Architecture](https://arxiv.org/abs/2605.12239) | 独立学者（2026.05） | 用范畴论三元组为 Harness 建立形式化数学基础，编译器函子实现跨运行时 Harness 编译 |
 | [Effective Harness Engineering for Algorithm Discovery](https://arxiv.org/abs/2605.15221) | NEC-NTT 联合（2026.05） | 算法发现场景的 Harness 设计：少而深优于多而浅，更强模型产生更多评估作弊需检测 |
 | [Harness Engineering for Physical AI](https://arxiv.org/abs/2606.09416) | 韩国研究团队（2026.06） | 将机器人中间件形式化为 Physical AI Harness 层，提出 Projection/Isolation/Transfer 三功能 |
+| [HARBOR](https://arxiv.org/abs/2606.08610) | Li et al.（2026.06） | 把机器人 RL 工程流水线（建任务/奖励/调参）建模为 harness 问题：专门化 Agent + 标准化命令/artifact/可执行 gate + 去中心化并行试验与跨运行经验学习；6 基准 16 任务含 sim-to-real，补齐具身 Harness 的"研发时"端口（与 Physical AI 的"运行时"端口互补） |
 | [The Interplay of Harness Design and Post-Training](https://arxiv.org/abs/2606.25447) | 韩国研究团队（2026.06） | Harness 作为可控设计维度的后训练研究，harness-aware post-training 提升 OOD 鲁棒性 |
 | [Tuning Deep Agents to Work Well with Different Models](https://www.langchain.com/blog/tuning-deep-agents-different-models) | LangChain（2026.04） | Harness Profiles：按模型维护专属配置覆盖层，tau2-bench +10-20pp 量化证据 |
 | [How to Build a Custom Agent Harness](https://www.langchain.com/blog/how-to-build-a-custom-agent-harness) | LangChain（2026.06） | 中间件式 Harness 扩展范式 + Task-Harness Fit 概念，`create_agent` 最小化原语 |
@@ -586,3 +587,4 @@ Level X（一句话总结）
 | 2026-07-15 | v1.12 | 文档质量清理：合并 article 内部冗余（6.8↔5.10、7.5↔6.12、原则四↔4.4）；为 5.15/5.7/6.11 基准表加研究快照版本说明、Better Harness 去 Sonnet 4.6 版本号、反模式 12 加快照注；补 Lilian Weng《Harness Engineering for Self-Improvement》(2026.07)；结语补"护城河"论点的能力区间限定；P2 收尾：精简 D8 一处 ratchet 冗余引用、补 ToFu/HarnessX 两篇 2026.06-07 新文献 |
 | 2026-07-21 | v1.13 | 新增「restart engineering / durable state」主题：补 2 篇深度解读（Philipp Schmid《The importance of Agent Harness in 2026》OS 类比 + context durability + harness-is-the-dataset；Markdown Engineering《The Harness Is the Product》restart engineering + veto durability + replay safety + Georgiev 16→2 案例）；D2.3 新增负面知识持久化检查项、D8 新增 replay safety + 显式 stop conditions 两项检查项；新增反模式 13（决策遗失/Veto Loss）。与 article §2.4/§6.15/§12/结语、implementation-guide「状态可恢复」全局原则联动 |
 | 2026-07-27 | v1.14 | 补 7 篇 arXiv/AIware 权威来源（共 70 个）：Self-Evolving Gated QD、Harness Handbook、Prompts to Contracts、Agentic AI Coding Tools 实证、Harness-Bench、HASE、Better Harnesses Smaller Models；D1.1 新增 AGENTS.md 互操作标准检查项、D4 新增 credited improvement 确定性记功 + behavior localization 两项检查项、D4 来源行补 Gated QD、D5.3 新增 composition boundary 契约验证检查项；反模式 12（静态迁移）补 Gated QD 学术背书；新增反模式 14（Bitter Lesson 误读）正面回应"模型变强不再需要 harness"的常见误判。article 新增 §12「Harness 会消失吗：Bitter Lesson 与共演化」辩证小节，与 §3.5/§5.18/§6.16/§7.5 联动 |
+| 2026-08-04 | v1.15 | 补 1 篇 arXiv 权威来源（共 71 个）：HARBOR——把机器人 RL 工程流水线（建任务/奖励/调参）建模为 harness 问题，专门化 Agent + 标准化命令/artifact/可执行 gate + 去中心化并行试验与跨运行经验学习；6 基准 16 任务含 sim-to-real，补齐具身 Harness 的"研发时"端口（与 Physical AI Harness 的"运行时"端口互补）。article §12 具身 Harness 小节新增 HARBOR 段落 + "运行时/研发时"两端光谱综述。另：本轮检索到 2 个 OpenReview 候选（Towards Long-Horizon Agents、LLM-as-Code），因 API 返回空 + 页面验证墙无法验证真实性，按宁缺毋滥未纳入 |
