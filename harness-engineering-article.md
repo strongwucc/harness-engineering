@@ -157,6 +157,8 @@ Manus 团队重写了四次 Agent 框架后得出结论：**KV-cache 命中率�
 
 Harness 工程正在从一门"手工工艺"变成一门"自动科学"。
 
+2026 年 8 月，综述《The Path to Recursive Self-Improving Agents》把这条轨迹正式形式化：提出**五级分级标准**（从手动改进到通用递归自改进），并把基础模型、Agent Harness、Agent 数据系统、Agent 训练器与支配它们改进的机制建模为一个**耦合系统**——自改进不再是单点技术，而是覆盖"组件内自改进"与"跨组件共改进"的统一研究框架。这为评估一个团队的自进化成熟度提供了参照系：你在第几级，到下一级还差什么。
+
 ### 3.6 Loop Engineering：当 Harness 装上时钟（2026.06）
 
 2026 年 6 月 7 日，一个概念在硅谷 AI 圈集中爆发。三个人——代表两个阵营——**独立表达了完全相同的观点**。
@@ -262,6 +264,18 @@ Loop Engineering 的概念在学术界有独立的、更早的研究线索：
 | [Continual Harness](https://arxiv.org/abs/2605.09998)（2026.05） | 无重置自改进 Harness，从轨迹数据自动优化 prompts/sub-agents/skills/memory |
 
 学术界的共识方向与工业界一致：**从随机循环 → 确定性格局 → 自我进化闭环。** Loop Engineering 是这条线上最新的工程实践落点。
+
+### 3.7 图工程：Graph Engineering 的回归（2026.07）
+
+Loop Engineering 之后，X 上又造出了新词 "graph engineering"。LangChain 的回应文章《3 Years of Graph Engineering》给出了清醒的定位：**这不是新想法，而是可靠 Agent 的一条成熟路线换了名字**——与 loop engineering、harness engineering 是同一件事的不同切面："把模型推理放在正确的位置、配上正确的上下文"。
+
+真正值得记下的是它划出的**决策边界**：
+
+- **结构可预知的流程用图**：客服先分类再回答、合规先审批再执行——把有效路径、模型可选择的分叉点、必须确定性的步骤直接编码进图结构，不指望模型每次都判断对
+- **开放探索用 agentic 核心循环**：通用深度研究难以预先钉死路径——LangChain 自家的深度研究从预定义 LangGraph 工作流迁到了 agentic core loop，GPT Researcher 也把图状多 Agent 流水线换成了 Deep Agents
+- **两者不是二选一**：生产图里混排三类节点——固定步骤（纯代码）、模型步骤（单次 LLM 调用）、Agent 步骤（完整 agent run）。2026 年真正的新东西是**节点可以是一个完整的 Agent**——你编排的不再只是 LLM 调用，而是 Agent
+
+另一个工程常识：**生产 Agent 的图通常不是 DAG**。重试失败的工具调用、向用户追问、验证后修订——循环是 Agent 系统的核心部分。而 loop engineering 本身就是"简单的环图"：LangChain 框架就构建在 LangGraph 之上。图与循环、图与 Harness，是同一谱系的不同抽象层次，而非竞争范式。
 
 ---
 
@@ -623,6 +637,14 @@ MUSE 的贡献是双重的：
 
 这项研究给整个领域提供了第一个"开发者实际配置行为"的实证基线，也让前面所有"应该怎么做"有了对照——行业现状距离生产级 Harness（D1-D7 全覆盖）还差得很远，绝大多数仓库连 Skills/Subagents 都还没用上。
 
+### 5.19 SemaClaw：个人 Agent 时代的 Harness 工程
+
+前面 5.1-5.18 的主角都是工程团队。2026 年上半年 OpenClaw 的爆火标志着另一个拐点：**数百万普通用户开始把个人 AI Agent 部署进日常生活**——订行程、做多步研究。论文《SemaClaw: A Step Towards General-Purpose Personal AI Agents through Harness Engineering》正是对这个场景的回应，其立论与本文主线一致：**模型能力趋同之际，Harness 层正在成为架构差异化的主战场**。
+
+SemaClaw 是一个开源多 Agent 应用框架，四个核心贡献都落在 Harness 组件上：DAG 两阶段混合 Agent 团队编排（何时确定性调度、何时放权给 Agent）、PermissionBridge 行为安全系统（权限桥在执行前拦截，而非事后审计）、三层上下文管理、以及把个人知识库构建自动化为 agentic wiki skill。
+
+对实践者的启示：个人 Agent 场景把 Harness 工程的门槛拉到了消费级——用户不会写提示词，但会承受权限失控的后果。**Harness 的质量从"工程团队的效率问题"变成了"终端用户的安全问题"**，这正是 7.4 多用户治理、7.5 确定性合规在个人场景的延伸。
+
 ---
 
 ## 六、Harness 的六大核心组件
@@ -788,6 +810,24 @@ browser-use 团队的实践：从数千行 element extractor / DOM indexer / cli
 生产级 harness 通常很大、紧耦合、行为分散在几十个文件里，而修改请求描述的是"系统该做什么"，仓库却按文件/模块组织——这个"行为到代码"的映射（behavior localization）要靠人手工恢复，是 harness 演进的中心瓶颈。Handbook 的解法是用静态分析 + LLM 辅助结构化，自动合成一份**以行为为中心的表示**，把每个行为链接到对应的源码位置；再配合 Behavior-Guided Progressive Disclosure（BGPD），从高层行为逐步引导到实现细节，并对照当前源码验证候选位置。在两个开源 harness 上，这种 handbook 辅助的规划改进行为定位和编辑计划质量，且用更少的 planner token——在分散位点、罕见执行路径、跨模块交互上收益最大。
 
 这条组件的实际含义：当 harness 成长到一定规模，"能让 agent 或人快速找到某条规则在哪实现"和"这条规则本身"同等重要。它和 6.13 的 ratchet（规则会持续增加）、6.15 的 restart engineering（状态要落盘可恢复）是同一个主题的不同切面——**harness 不只要设计得好，还要演化得动**。这与第十二章的 Meta-Harness、3.5 的自进化 Harness 一起，把"可维护性"推上了 harness 工程的一等位置。
+
+### 6.17 可观测性与反馈闭环：Trace 是必要不充分条件
+
+LangChain 的《Agent Observability Needs Feedback to Power Learning》纠正了一个普遍误区：**可观测性不是调试工具，是学习基础设施**——但 trace 单独构不成学习闭环。
+
+核心论点：trace 告诉你"发生了什么"，不告诉你"这样对不对"。Agent 用 40 步完成本该 6 步的任务、产出用户拒绝的答案、不出错但没满足意图——这些光看轨迹读不出来。**反馈必须附着在 trace 上存储**（挂在对应的 run/trace/thread 上，而非散落在独立表格），才能按成败过滤轨迹、从真实失败构建数据集、追踪行为是否随迭代改进。
+
+反馈有四类来源：直接用户反馈（最清晰但最稀疏）、间接行为信号（diff 保留率、工单重开率——更噪但量大）、LLM-as-judge（可规模化跑在线评估）、**确定性规则（被低估的 regex——已知失败模式直接编码，零模型调用）**。Claude Code 泄露源码中的用户挫败感检测就是一个正则而非模型调用：便宜信号够用就别用贵的。
+
+诊断框架同样分层：失败先归因到 **model 层**（能力不够）、**harness 层**（脚手架错了——工具描述含糊、缺 read-before-write 约束）还是 **context 层**（拿到的信息本身不对），对应的改进对象完全不同。平台公式一句话：**store traces + store feedback + generate feedback**——与 6.9 OpenAI 飞轮、6.13 ratchet 是同一闭环的三个视角。
+
+### 6.18 Harness 工程与微调：三明治策略
+
+LangChain 的《Improving Agents is a Data Mining Problem》回答了团队最常问的问题：**什么时候该做 harness 工程，什么时候该微调？**
+
+答案是一个三明治：**Harness Engineering → Fine-Tuning → Harness Engineering**。harness 工程反馈快（改完即测）、带宽高（把领域知识和错误观察直接写进 agent），对多数团队已经够用；但最终会撞上**智能天花板**——提示词再怎么调也变不出更多智力，此时微调才值得投入（要策数据、跑长周期实验）；微调完成后，再回到 harness 工程验证新智能的泛化。量化注脚：Terminal Bench 2.0 上纯 harness 爬山（用 eval 分数做登山指标）拿到 **+13.7%** 提升。
+
+同一篇文章的两个配套洞察：其一，evals 是 agent 的训练数据——爬山爬过的行为会固化进 agent，eval 集的质量就是 agent 的上限；其二，分析海量 trace 可以用微调过的小模型——窄任务上小开源模型判 trace 比前沿大模型更准且便宜数量级，token 成本换成基础设施成本。这与 Philipp Schmid 的"Harness is the Dataset"互为印证：**竞争优势正从提示词转向你从轨迹里挖出什么**。
 
 ---
 
@@ -1018,7 +1058,7 @@ NLAH（Natural-Language Agent Harnesses）则从另一个角度切入：**Harnes
 
 每当新一代模型发布，就会有一轮"模型够强了，是不是不需要这么多 harness"的讨论。这个直觉有学术血脉，但需要拆开看。
 
-它源自 Rich Sutton 的 Bitter Lesson：手写的人类领域知识，长期都会输给"靠算力扩展的通用方法"。把这条搬到 agent 上，[Gregor Zunic](https://browser-use.com/posts/bitter-lesson-agent-harnesses)（browser-use）和一批技术债分析都指出：**为当前模型弱点打的补丁——分段续写的 sprints、格式提醒、手写的 procedural guidance——确实是技术债，模型一升级就多余**。Anthropic 自己在 [Managed Agents](https://www.anthropic.com/engineering/managed-agents) 里也承认"harnesses encode assumptions that go stale as models improve"。行业里能观察到新模型发布后，之前维持长任务连贯的组件被整个删掉——模型自己能撑两小时。这一层，质疑成立。
+它源自 Rich Sutton 的 Bitter Lesson：手写的人类领域知识，长期都会输给"靠算力扩展的通用方法"。把这条搬到 agent 上，[Gregor Zunic](https://browser-use.com/posts/bitter-lesson-agent-harnesses)（browser-use）和一批技术债分析都指出：**为当前模型弱点打的补丁——分段续写的 sprints、格式提醒、手写的 procedural guidance——确实是技术债，模型一升级就多余**。Anthropic 自己在 [Managed Agents](https://www.anthropic.com/engineering/managed-agents) 里也承认"harnesses encode assumptions that go stale as models improve"。LangChain 在 [《Improving Agents is a Data Mining Problem》](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem)里也直言"harness 是原生智能的放大器和延伸器，模型变强后大部分 harness 会溶解"。行业里能观察到新模型发布后，之前维持长任务连贯的组件被整个删掉——模型自己能撑两小时。这一层，质疑成立。
 
 但"不需要 harness"是过度推论，把两件不同的事混成了一件。[Component Taxonomy Survey](https://www.preprints.org/manuscript/202606.2203) 给过最精确的切分：harness 里的**例行支撑**（提示词脚手架、格式补救）会随模型变强迁回权重；但**约束性治理**（权限、PII、合规、预算、可观测性、状态恢复）不会——后者不是"模型还不够强"，而是"不该交给概率性判断"。证据是硬的：[From Prompts to Contracts](https://arxiv.org/abs/2607.08028) 量化出约束性验证只能由代码所有（utility 120/120），提示词和外挂 guardrail 都做不到（88/120）；[Binding Constraint Thesis](https://openreview.net/forum?id=ffKHSraOIK)、[Harness-Bench](https://arxiv.org/abs/2605.27922) 和密歇根大学的[统计归因](https://openreview.net/forum?id=QI8z3skBwt) 三处独立实证都说同一句话——harness 配置的方差，至少不亚于模型选择的方差。
 
@@ -1109,6 +1149,8 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Harness-Bench: Measuring Harness Effects across Models in Realistic Agent Workflows](https://arxiv.org/abs/2605.27922)（arXiv，2026.05）——首个诊断级 harness 效应基准，106 任务 5194 轨迹，证明 model-harness 配对间完成度/质量/效率/失败模式差异显著；提出 execution-alignment failure（合理推理与工具反馈脱钩），主张能力须报"model+配置"层面
 - [Harness-Aware Self-Evolving (HASE): Co-Evolving Model Weights, Harness, and Task Solutions](https://arxiv.org/abs/2607.03935)（arXiv，2026.07）——单模型在同一 agentic loop 里既出解又改 harness，Qwen3-8B+HASE 匹配 GPT-OSS-120B+Claude Code，证明 harness 与解可通过统一过程共优化
 - [Better Harnesses, Smaller Models: Building 90% Cheaper Agents via Automated Harness Adaptation](https://arxiv.org/abs/2607.08938)（arXiv，2026.07）——任务难度可从模型迁入 harness，SLM+适配 harness 恢复 89.7% LLM 表现且仅 4% 成本；反证"harness 补偿模型"方向，21 个 task-SLM 对中 16 个显著提升
+- [The Path to Recursive Self-Improving Agents: Foundation, Framework, and Future Directions](https://www.preprints.org/manuscript/202608.0051)（Preprints，2026.08）——自改进 Agent 系统综述：五级分级标准（手动改进→通用递归自改进）+ 基础模型/Harness/数据系统/训练器/改进机制五组件耦合框架 + 组件内自改进与跨组件共改进 taxonomy
+- [SemaClaw: A Step Towards General-Purpose Personal AI Agents through Harness Engineering](https://arxiv.org/abs/2604.11548)（arXiv，2026.04）——个人 Agent（OpenClaw 场景）的 harness 工程落地：DAG 两阶段混合编排 + PermissionBridge 行为安全 + 三层上下文管理 + agentic wiki；"harness 层成为架构差异化主战场"的规模化实证
 
 ### 官方资源
 - [2026 Agentic Coding Trends Report](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf)（Anthropic）
@@ -1135,6 +1177,9 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Tuning the Harness, Not the Model: A Nemotron 3 Ultra Playbook](https://www.langchain.com/blog/tuning-the-harness-not-the-model-a-nemotron-3-ultra-playbook)（LangChain，2026.07）——开源模型只调 harness 即逼近 Opus 4.8（0.86 vs 0.87），成本约 1/10；提出 harness-vs-weights 诊断、core vs profile 切分、signal placement 三条调优纪律
 - [How Middleware Lets You Customize Your Agent Harness](https://www.langchain.com/blog/how-middleware-lets-you-customize-your-agent-harness)（LangChain，2026.03）——六钩子中间件 taxonomy（before_agent/before_model/wrap_model_call/wrap_tool_call/after_model/after_agent），中间件的两份工作（代码强制 vs 上下文工程），PII 确定性合规——"无法用提示词实现 HIPAA 合规"
 - [Your Harness, Your Memory](https://www.langchain.com/blog/your-harness-your-memory)（LangChain，2026.04）——记忆是 harness 的核心职责而非外挂；闭源 harness（尤其 API 后的）= 交出记忆控制权与平台锁定；Claude Code 泄露源码 512k 行即 harness 规模的证据
+- [Agent Observability Needs Feedback to Power Learning](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning)（LangChain，2026.05）——trace 必要但不充分，反馈须附着于轨迹存储；四类反馈源（直接/间接用户、LLM-as-judge、确定性规则）；model/harness/context 三层失败归因；store traces + store feedback + generate feedback
+- [Improving Agents is a Data Mining Problem](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem)（LangChain，2026.07）——HE→FT→HE 三明治策略：harness 工程对多数团队够用（快反馈、高带宽），撞智能天花板再微调；Terminal Bench 2.0 纯 harness 爬山 +13.7%；小模型判 trace 比大模型便宜数量级
+- [3 Years of Graph Engineering with LangGraph](https://www.langchain.com/blog/3-years-of-graph-engineering-with-langgraph)（LangChain，2026.07）——graph engineering 与 loop/harness 工程同谱系；图 vs agentic 循环的决策边界（结构可预知用图、开放探索用核心循环、节点可为完整 agent run）；生产 Agent 图不是 DAG
 
 ### 深度解读
 - [Engineering Rigor Doesn't Disappear — It Relocates: Four Years of AI Agentic Patterns](https://bits-bytes-nn.github.io/insights/agentic-ai/2026/04/05/evolution-of-ai-agentic-patterns-en.html)——从提示词到上下文到 Harness 的完整演进史

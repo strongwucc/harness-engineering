@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.15
-**更新日期**: 2026-08-04
+**版本**: v1.16
+**更新日期**: 2026-08-21
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -85,6 +85,11 @@
 | [Harness-Bench](https://arxiv.org/abs/2605.27922) | Yao et al.（2026.05） | 首个诊断级 harness 效应基准，5194 轨迹证 model-harness 配对间差异显著；execution-alignment failure 概念 |
 | [HASE](https://arxiv.org/abs/2607.03935) | Luo et al.（2026.07） | 单模型同一 loop 出解+改 harness，权重-harness-解共演化，小模型匹配大模型 |
 | [Better Harnesses, Smaller Models](https://arxiv.org/abs/2607.08938) | Yang et al.（2026.07） | 任务难度从模型迁入 harness，SLM 恢复 89.7% LLM 表现仅 4% 成本；harness 补偿模型的量化反证 |
+| [The Path to Recursive Self-Improving Agents](https://www.preprints.org/manuscript/202608.0051) | Preprints（2026.08） | 自改进 Agent 综述：五级分级标准（手动→通用递归自改进）+ 模型/Harness/数据系统/训练器/改进机制五组件耦合框架，组件内自改进与跨组件共改进 taxonomy |
+| [SemaClaw](https://arxiv.org/abs/2604.11548) | Zhu et al.（2026.04） | 个人 Agent（OpenClaw 场景）harness 工程框架：DAG 两阶段混合编排、PermissionBridge 行为安全、三层上下文管理、agentic wiki skill——harness 差异化延伸到消费级 |
+| [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning) | LangChain（2026.05） | trace 必要不充分，反馈附着轨迹存储才能构成学习闭环；四类反馈源；model/harness/context 三层失败归因 |
+| [Improving Agents is a Data Mining Problem](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem) | LangChain（2026.07） | HE→FT→HE 三明治策略：harness 工程优先（快反馈高带宽），撞智能天花板再微调，微调后回 harness 验证泛化；TB 2.0 纯 harness 爬山 +13.7% |
+| [3 Years of Graph Engineering with LangGraph](https://www.langchain.com/blog/3-years-of-graph-engineering-with-langgraph) | LangChain（2026.07） | graph vs agentic 循环决策边界：结构可预知用图、开放探索用核心循环、图节点可为完整 agent run；生产 Agent 图非 DAG，循环是核心 |
 
 ---
 
@@ -231,7 +236,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D4：熵管理
 
-> 来源：OpenAI（Harness Engineering 三大支柱）+ [Meta-Harness](https://arxiv.org/html/2603.28052v1)（2026.03）+ [Self-Harness](https://arxiv.org/abs/2606.09498)（2026.06）+ [SIA](https://arxiv.org/abs/2605.27276)（2026.05）+ [Gated QD](https://arxiv.org/abs/2607.13683)（2026.07）
+> 来源：OpenAI（Harness Engineering 三大支柱）+ [Meta-Harness](https://arxiv.org/html/2603.28052v1)（2026.03）+ [Self-Harness](https://arxiv.org/abs/2606.09498)（2026.06）+ [SIA](https://arxiv.org/abs/2605.27276)（2026.05）+ [Gated QD](https://arxiv.org/abs/2607.13683)（2026.07）+ [Recursive Self-Improving Agents](https://www.preprints.org/manuscript/202608.0051)（2026.08）+ [Data Mining](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem)（LangChain，2026.07）
 > 原则：最被低估的组件。AI 生成的代码库会积累熵——文档偏离现实、命名约定分化、死代码堆积。Harness 本身也会积累熵——2026 年最新研究证明，可以让 Agent 自己管理这种熵。
 
 **检查项**：
@@ -253,11 +258,13 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Harness 删改遵循跨模型 holdout 验证 + 可证伪合约（每次删改附失败证据/根因/预期影响，下一轮用任务结果验证——AHE 决策可观测性）
 - [ ] 自进化的 credited improvement 由确定性代码记功（分离 propose/credit：模型只诊断失败、提补丁，采样/测量/显著性检验由代码完成，避免模型自评噪声与对训练任务的过拟合——参考 Gated QD）
 - [ ] harness 规则可定位（每条规则能快速找到实现位置，"行为到代码"映射可恢复而非散落文件靠记忆——参考 Harness Handbook 的 behavior localization）
+- [ ] 改进投入按「harness 工程 vs 微调」分层决策（harness 工程优先——反馈快、带宽高；撞智能天花板或需蒸馏时才微调，微调后回 harness 工程验证泛化——参考 LangChain HE→FT→HE 三明治）
+- [ ] 自改进能力有分级路线图（明确当前处于手动/组件级/跨组件共改进哪一级，及向上一级缺什么——参考 Recursive Self-Improving Agents 五级分级）
 
 **评估标准**：
 - 1 星：无任何熵管理意识
 - 3 星：意识到问题但无自动化机制
-- 5 星：有定期清理 Agent、文档一致性检查、模型更新审查流程、Harness 有效性量化追踪、组件级贡献归因、Harness 自愈闭环
+- 5 星：有定期清理 Agent、文档一致性检查、模型更新审查流程、Harness 有效性量化追踪、组件级贡献归因、Harness 自愈闭环、改进策略分层
 
 ---
 
@@ -303,7 +310,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D6：测试与验证
 
-> 来源：Andrew Ng（Agentic 工作流）+ Anthropic（三 Agent 架构）
+> 来源：Andrew Ng（Agentic 工作流）+ Anthropic（三 Agent 架构）+ [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning)（LangChain，2026.05）
 > 原则：用 Agentic 工作流包装 GPT-3.5 超过 GPT-4 零样本表现——好的测试套件让 Agent 更安全地工作。
 
 **检查项**：
@@ -315,11 +322,13 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 有端到端测试或集成测试（非仅单元测试）
 - [ ] 区分 capability evals 与 regression evals，后者维持接近 100% 通过率专门捕获回退（参考 Demystifying Evals）
 - [ ] Harness 变更用 holdout set 验证泛化，防止过拟合到已知用例（参考 Better Harness）
+- [ ] Trace 与反馈信号关联存储（反馈挂在对应 run/trace 上，可按成败过滤轨迹、从真实失败构建 eval 数据集，非散落在独立表格——trace 告诉你发生了什么，反馈告诉你对不对，参考 Agent Observability）
+- [ ] 反馈源覆盖多类（直接用户/间接行为信号/LLM-as-judge/确定性规则至少两类；已知失败模式优先编码为确定性规则，零模型调用——参考 Agent Observability 四类反馈源）
 
 **评估标准**：
 - 1 星：无测试基础设施
 - 3 星：有测试框架但覆盖集中在少数模块
-- 5 星：核心业务全覆盖 + 测试隔离 + Agent 自验证 + 端到端测试
+- 5 星：核心业务全覆盖 + 测试隔离 + Agent 自验证 + 端到端测试 + trace 反馈闭环
 
 ---
 
@@ -344,7 +353,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D8：Agent 工作流编排
 
-> 来源：综合（Anthropic 三 Agent + LangChain 自验证 + Vercel 减法优化 + Loop Engineering 五大构建块 + Structured Graph Harness + LOOP Skill Engine + Bitter Lesson 极简主义）
+> 来源：综合（Anthropic 三 Agent + LangChain 自验证 + Vercel 减法优化 + Loop Engineering 五大构建块 + Structured Graph Harness + LOOP Skill Engine + Bitter Lesson 极简主义 + [Graph Engineering](https://www.langchain.com/blog/3-years-of-graph-engineering-with-langgraph)（LangChain，2026.07））
 > 原则：最好的 Harness 改进往往来自"做更少"。2026 年 6 月，Loop Engineering 将工作流编排从"手动触发"推进到"自动调度 + 自驱动"——Harness 装上时钟。
 
 **检查项**：
@@ -366,11 +375,12 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Harness 改动遵循 core vs profile 切分纪律（每条改动追问"能往 core 推多远"，模型专属部分隔离到 profile，让 core 保持干净可跨模型复用——参考 Nemotron Playbook）
 - [ ] 恢复执行遵循 replay safety（从检查点/会话恢复时不重复副作用——副作用包成幂等或隔离，从持久化结果取回而非重算；"resume 不破坏现实"——参考 The Harness Is the Product）
 - [ ] 有显式 stop conditions（done / blocked / awaiting_approval / awaiting_external_event / needs_human_decision / aborted_due_to_budget 等明确终止态，而非"一直跑到 token 耗尽"——参考 The Harness Is the Product）
+- [ ] 编排形态按任务可预知度选择（结构可预知的流程用图/确定性路径编码，开放探索用 agentic 核心循环；图节点可为完整 agent run，固定/模型/Agent 三类节点可混排——参考 Graph Engineering 的决策边界）
 
 **评估标准**：
 - 1 星：无工作流，Agent 自由发挥
 - 3 星：有基本流程但缺少验证/恢复环节，无自动化调度
-- 5 星：完整工作流 + 验证 + 恢复 + 工具精简 + 多 Agent 协作 + 自动化调度 + 跨会话状态 + 目标驱动 + 高频任务确定性回放 + 模型专属配置 + 可组合中间件 + agent 自补缺失工具
+- 5 星：完整工作流 + 验证 + 恢复 + 工具精简 + 多 Agent 协作 + 自动化调度 + 跨会话状态 + 目标驱动 + 高频任务确定性回放 + 模型专属配置 + 可组合中间件 + agent 自补缺失工具 + 编排形态按可预知度选择
 
 ---
 
@@ -588,3 +598,4 @@ Level X（一句话总结）
 | 2026-07-21 | v1.13 | 新增「restart engineering / durable state」主题：补 2 篇深度解读（Philipp Schmid《The importance of Agent Harness in 2026》OS 类比 + context durability + harness-is-the-dataset；Markdown Engineering《The Harness Is the Product》restart engineering + veto durability + replay safety + Georgiev 16→2 案例）；D2.3 新增负面知识持久化检查项、D8 新增 replay safety + 显式 stop conditions 两项检查项；新增反模式 13（决策遗失/Veto Loss）。与 article §2.4/§6.15/§12/结语、implementation-guide「状态可恢复」全局原则联动 |
 | 2026-07-27 | v1.14 | 补 7 篇 arXiv/AIware 权威来源（共 70 个）：Self-Evolving Gated QD、Harness Handbook、Prompts to Contracts、Agentic AI Coding Tools 实证、Harness-Bench、HASE、Better Harnesses Smaller Models；D1.1 新增 AGENTS.md 互操作标准检查项、D4 新增 credited improvement 确定性记功 + behavior localization 两项检查项、D4 来源行补 Gated QD、D5.3 新增 composition boundary 契约验证检查项；反模式 12（静态迁移）补 Gated QD 学术背书；新增反模式 14（Bitter Lesson 误读）正面回应"模型变强不再需要 harness"的常见误判。article 新增 §12「Harness 会消失吗：Bitter Lesson 与共演化」辩证小节，与 §3.5/§5.18/§6.16/§7.5 联动 |
 | 2026-08-04 | v1.15 | 补 1 篇 arXiv 权威来源（共 71 个）：HARBOR——把机器人 RL 工程流水线（建任务/奖励/调参）建模为 harness 问题，专门化 Agent + 标准化命令/artifact/可执行 gate + 去中心化并行试验与跨运行经验学习；6 基准 16 任务含 sim-to-real，补齐具身 Harness 的"研发时"端口（与 Physical AI Harness 的"运行时"端口互补）。article §12 具身 Harness 小节新增 HARBOR 段落 + "运行时/研发时"两端光谱综述。另：本轮检索到 2 个 OpenReview 候选（Towards Long-Horizon Agents、LLM-as-Code），因 API 返回空 + 页面验证墙无法验证真实性，按宁缺毋滥未纳入 |
+| 2026-08-21 | v1.16 | 补 5 个权威来源（共 76 个）：Recursive Self-Improving Agents 综述（五级分级 + 五组件耦合框架）、SemaClaw 个人 Agent Harness（2 篇学术论文）；Agent Observability Needs Feedback、Improving Agents is a Data Mining Problem（HE→FT→HE 三明治）、3 Years of Graph Engineering（3 篇 LangChain）。D4 新增改进分层决策 + 自改进分级路线图两项检查项、D6 新增 trace 反馈关联存储 + 多类反馈源两项检查项、D8 新增编排形态按可预知度选择检查项；D4/D6/D8 来源行与五星标准同步扩展。article 新增 §3.7 Graph Engineering 决策边界、§5.19 SemaClaw、§6.17 可观测性与反馈闭环、§6.18 三明治策略，§3.5 补自改进综述、§12 补 harness 溶解论引用；implementation-guide §9 补"失败→eval 反馈闭环"（含指南同步） |
