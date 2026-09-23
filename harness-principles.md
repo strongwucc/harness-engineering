@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.16
-**更新日期**: 2026-08-21
+**版本**: v1.17
+**更新日期**: 2026-09-23
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -90,6 +90,13 @@
 | [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning) | LangChain（2026.05） | trace 必要不充分，反馈附着轨迹存储才能构成学习闭环；四类反馈源；model/harness/context 三层失败归因 |
 | [Improving Agents is a Data Mining Problem](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem) | LangChain（2026.07） | HE→FT→HE 三明治策略：harness 工程优先（快反馈高带宽），撞智能天花板再微调，微调后回 harness 验证泛化；TB 2.0 纯 harness 爬山 +13.7% |
 | [3 Years of Graph Engineering with LangGraph](https://www.langchain.com/blog/3-years-of-graph-engineering-with-langgraph) | LangChain（2026.07） | graph vs agentic 循环决策边界：结构可预知用图、开放探索用核心循环、图节点可为完整 agent run；生产 Agent 图非 DAG，循环是核心 |
+| [Rethinking the Evaluation of Harness Evolution for Agents](https://arxiv.org/abs/2607.12227) | UW 等多机构（2026.07，v2 2026.08） | 自进化 harness 再评估：须与预算对齐的 test-time scaling 基线比较 + held-out 泛化验证；Terminal-Bench 2.1 上自动 harness 进化不稳定优于简单搜索且泛化有限——自进化可信度取决于评估协议严格度 |
+| [Bad Genius: Counterfactual-Guided Harness Evolution](https://arxiv.org/abs/2609.18366) | Zhu et al.（2026.09） | task holdout 只换语义任务不换基准协议，"作弊 harness"仍可通过协议捷径得分；反事实引导 + 预注册 fresh-world 确认对抗捷径 |
+| [ModularRSI: Modular and Generalizable Recursive Harness Self-Improvement](https://arxiv.org/abs/2609.14857) | Wu, Ren et al.（2026.09） | 递归自改进（RSI）模块化、通用化扩展到 agent harness，正面回应自进化泛化质疑 |
+| [HarnessDev: Can LLMs Create and Evolve Their Own Agent Harness?](https://arxiv.org/abs/2609.01437) | Wu et al.（2026.09） | 把"创建和进化自己的 harness"本身作为评估对象——harness 从改进工具升格为被评估的能力 |
+| [Externalization in LLM Agents](https://arxiv.org/abs/2604.08224) | 多机构联合（2026.04） | 记忆/技能/协议/Harness 工程统一为"外化"主题的四种子学科，跨领域概念地图 |
+| [Symphony: Codex 编排开放规格](https://openai.com/index/open-source-codex-orchestration-symphony/) | OpenAI（2026.04，GitHub 26.9k stars） | harness engineering 官方下一步：从管理 agents 到管理 work；Linear 作控制平面、隔离自主实现运行、proof of work；SPEC.md 优先——规格一等公民，实现可替换 |
+| [Harness Engineering: A Guide to AI Coding Agents](https://www.faros.ai/blog/harness-engineering) | Faros（2026.05） | 211 真实任务实测开放模型均等器（GLM-5.2/Kimi K2.6 + 优化 harness 反超 Opus 4.8/GPT-5.5）；五层 harness；Anthropic 失败模式三命名；Stage 1-3 分阶段度量 + session-to-PR 关联 |
 
 ---
 
@@ -236,7 +243,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D4：熵管理
 
-> 来源：OpenAI（Harness Engineering 三大支柱）+ [Meta-Harness](https://arxiv.org/html/2603.28052v1)（2026.03）+ [Self-Harness](https://arxiv.org/abs/2606.09498)（2026.06）+ [SIA](https://arxiv.org/abs/2605.27276)（2026.05）+ [Gated QD](https://arxiv.org/abs/2607.13683)（2026.07）+ [Recursive Self-Improving Agents](https://www.preprints.org/manuscript/202608.0051)（2026.08）+ [Data Mining](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem)（LangChain，2026.07）
+> 来源：OpenAI（Harness Engineering 三大支柱）+ [Meta-Harness](https://arxiv.org/html/2603.28052v1)（2026.03）+ [Self-Harness](https://arxiv.org/abs/2606.09498)（2026.06）+ [SIA](https://arxiv.org/abs/2605.27276)（2026.05）+ [Gated QD](https://arxiv.org/abs/2607.13683)（2026.07）+ [Recursive Self-Improving Agents](https://www.preprints.org/manuscript/202608.0051)（2026.08）+ [Data Mining](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem)（LangChain，2026.07）+ [Rethinking Harness Evolution](https://arxiv.org/abs/2607.12227)（2026.07）+ [ModularRSI](https://arxiv.org/abs/2609.14857)（2026.09）
 > 原则：最被低估的组件。AI 生成的代码库会积累熵——文档偏离现实、命名约定分化、死代码堆积。Harness 本身也会积累熵——2026 年最新研究证明，可以让 Agent 自己管理这种熵。
 
 **检查项**：
@@ -260,6 +267,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] harness 规则可定位（每条规则能快速找到实现位置，"行为到代码"映射可恢复而非散落文件靠记忆——参考 Harness Handbook 的 behavior localization）
 - [ ] 改进投入按「harness 工程 vs 微调」分层决策（harness 工程优先——反馈快、带宽高；撞智能天花板或需蒸馏时才微调，微调后回 harness 工程验证泛化——参考 LangChain HE→FT→HE 三明治）
 - [ ] 自改进能力有分级路线图（明确当前处于手动/组件级/跨组件共改进哪一级，及向上一级缺什么——参考 Recursive Self-Improving Agents 五级分级）
+- [ ] 自进化增益有公平归因（harness 自改进的收益与预算对齐的 test-time scaling 基线对比过，且在搜索所用基准之外的 held-out 任务上验证泛化——避免把"更多搜索"记成功劳、把基准过拟合当进步，参考 Rethinking 的双重协议要求）
 
 **评估标准**：
 - 1 星：无任何熵管理意识
@@ -310,7 +318,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D6：测试与验证
 
-> 来源：Andrew Ng（Agentic 工作流）+ Anthropic（三 Agent 架构）+ [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning)（LangChain，2026.05）
+> 来源：Andrew Ng（Agentic 工作流）+ Anthropic（三 Agent 架构）+ [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning)（LangChain，2026.05）+ [Rethinking Harness Evolution](https://arxiv.org/abs/2607.12227)（2026.07）+ [Bad Genius](https://arxiv.org/abs/2609.18366)（2026.09）+ [Faros Harness Guide](https://www.faros.ai/blog/harness-engineering)（2026.05）
 > 原则：用 Agentic 工作流包装 GPT-3.5 超过 GPT-4 零样本表现——好的测试套件让 Agent 更安全地工作。
 
 **检查项**：
@@ -324,6 +332,8 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Harness 变更用 holdout set 验证泛化，防止过拟合到已知用例（参考 Better Harness）
 - [ ] Trace 与反馈信号关联存储（反馈挂在对应 run/trace 上，可按成败过滤轨迹、从真实失败构建 eval 数据集，非散落在独立表格——trace 告诉你发生了什么，反馈告诉你对不对，参考 Agent Observability）
 - [ ] 反馈源覆盖多类（直接用户/间接行为信号/LLM-as-judge/确定性规则至少两类；已知失败模式优先编码为确定性规则，零模型调用——参考 Agent Observability 四类反馈源）
+- [ ] 评估协议防基准作弊（holdout 之外确认基准协议本身未被利用——task holdout 只换语义任务不换协议，作弊 harness 仍可走协议捷径；关键改动用反事实/fresh-world 确认，参考 Bad Genius）
+- [ ] Agent 工作有 session-to-PR 关联度量（agent 会话连到产出的 PR 并标注意图，支撑 first-pass success、代码存活率、缺陷逃逸率——按现有数据分阶段起步，参考 Faros Stage 1-3）
 
 **评估标准**：
 - 1 星：无测试基础设施
@@ -519,6 +529,12 @@ Agent 拥有完整的文件系统访问和命令执行权限，无任何操作�
 
 **正确做法**：用 Component Taxonomy Survey 的共演化划线——例行支撑随模型变强可删（且做成可剥离），约束治理永远留在外部代码。From Prompts to Contracts 量化证明约束性验证只能由代码所有（utility 120/120），提示词和外挂 guardrail 都做不到；Binding Constraint Thesis、Harness-Bench 和密歇根大学统计归因三处独立实证都显示 harness 配置方差 ≥ 模型选择方差。真正的趋势不是 harness 消亡，而是从"人类手写"转向"模型自改写"（Self-Harness / AHE / HASE / Gated QD）。完整辩证见 article §12「Harness 会消失吗」。**"现在就不做 harness 工程化"是最大的战略误判**——它赌的是"模型会强到不需要任何外部约束"，与所有现有证据相悖。
 
+### 反模式 15：自进化自证循环（Self-Certified Evolution）
+
+自进化 harness 的"改进"在**搜索所用的同一基准上搜索并报告**，既不与对齐反馈/推理预算的 test-time scaling 基线比较，也不在 held-out 任务上验证泛化。Rethinking（2026.07）实测：这种协议下报告的增益可能是"更多搜索"和基准过拟合的混合物——Terminal-Bench 2.1 上自动 harness 进化不稳定优于简单搜索基线；Bad Genius（2026.09）进一步证明连 task holdout 都不够——只换语义任务不换基准协议，作弊 harness 仍能走协议捷径得分。
+
+**正确做法**：自进化的每一笔"记功"过三道关：**预算对齐基线**（同等反馈与推理预算下的任务级搜索基线）、**held-out 泛化**（搜索基准之外的任务集）、**协议反作弊确认**（反事实引导 / 预注册 fresh-world）。Gated QD 的"确定性记功 + sealed test"是可参照的先行实现；评估一门会自己改自己的系统，评估协议必须比被评估对象更硬。
+
 ---
 
 ## 评估输出模板
@@ -599,3 +615,4 @@ Level X（一句话总结）
 | 2026-07-27 | v1.14 | 补 7 篇 arXiv/AIware 权威来源（共 70 个）：Self-Evolving Gated QD、Harness Handbook、Prompts to Contracts、Agentic AI Coding Tools 实证、Harness-Bench、HASE、Better Harnesses Smaller Models；D1.1 新增 AGENTS.md 互操作标准检查项、D4 新增 credited improvement 确定性记功 + behavior localization 两项检查项、D4 来源行补 Gated QD、D5.3 新增 composition boundary 契约验证检查项；反模式 12（静态迁移）补 Gated QD 学术背书；新增反模式 14（Bitter Lesson 误读）正面回应"模型变强不再需要 harness"的常见误判。article 新增 §12「Harness 会消失吗：Bitter Lesson 与共演化」辩证小节，与 §3.5/§5.18/§6.16/§7.5 联动 |
 | 2026-08-04 | v1.15 | 补 1 篇 arXiv 权威来源（共 71 个）：HARBOR——把机器人 RL 工程流水线（建任务/奖励/调参）建模为 harness 问题，专门化 Agent + 标准化命令/artifact/可执行 gate + 去中心化并行试验与跨运行经验学习；6 基准 16 任务含 sim-to-real，补齐具身 Harness 的"研发时"端口（与 Physical AI Harness 的"运行时"端口互补）。article §12 具身 Harness 小节新增 HARBOR 段落 + "运行时/研发时"两端光谱综述。另：本轮检索到 2 个 OpenReview 候选（Towards Long-Horizon Agents、LLM-as-Code），因 API 返回空 + 页面验证墙无法验证真实性，按宁缺毋滥未纳入 |
 | 2026-08-21 | v1.16 | 补 5 个权威来源（共 76 个）：Recursive Self-Improving Agents 综述（五级分级 + 五组件耦合框架）、SemaClaw 个人 Agent Harness（2 篇学术论文）；Agent Observability Needs Feedback、Improving Agents is a Data Mining Problem（HE→FT→HE 三明治）、3 Years of Graph Engineering（3 篇 LangChain）。D4 新增改进分层决策 + 自改进分级路线图两项检查项、D6 新增 trace 反馈关联存储 + 多类反馈源两项检查项、D8 新增编排形态按可预知度选择检查项；D4/D6/D8 来源行与五星标准同步扩展。article 新增 §3.7 Graph Engineering 决策边界、§5.19 SemaClaw、§6.17 可观测性与反馈闭环、§6.18 三明治策略，§3.5 补自改进综述、§12 补 harness 溶解论引用；implementation-guide §9 补"失败→eval 反馈闭环"（含指南同步） |
+| 2026-09-23 | v1.17 | 补 7 个权威来源（共 83 个），主题"自进化再评估 + 编排范式"：Rethinking Harness Evolution（预算对齐基线 + held-out 泛化双重协议，Terminal-Bench 2.1 负面结果）、Bad Genius（协议层作弊与反事实引导）、ModularRSI、HarnessDev、Externalization in LLM Agents（5 篇学术论文）；OpenAI Symphony（harness engineering 官方下一步：管理 work 而非 agents，SPEC.md 优先，26.9k stars）、Faros Harness Guide（211 任务开放模型均等器 + session-to-PR 度量，2 篇行业文章）。D4 新增自进化增益公平归因检查项、D6 新增评估协议防基准作弊 + session-to-PR 关联度量两项检查项；新增反模式 15（自进化自证循环）。article 新增 §3.5 再评估危机段、§3.6 Symphony 小节、§5.20 Faros 案例、§6.19 session-to-PR 度量、§2.3 补 Externalization、§12 补三层防作弊协议；implementation-guide 同步度量与公平评估（含指南同步） |

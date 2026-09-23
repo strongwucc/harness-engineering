@@ -47,6 +47,8 @@ Harness 是"Agent 中除模型之外的一切"。它是一个系统的设计与�
 
 此后这一结论被两篇 2026 年的系统综述进一步坐实并深化。Li 等人的《Agent Harness Engineering: A Survey》（TMLR 投稿）把 Harness 分解为 **ETCLOVG 七层**（执行环境 / 工具接口 / 上下文管理 / 生命周期编排 / 可观测性 / 验证 / 治理），并映射了 **170+ 个开源项目**——证明这不再是一两家公司的经验，而是整个生态的共识结构。Guo 等人（华为）的《From Question Answering to Task Completion》则把"Agent = 模型 + 执行 Harness"作为统一切入点，提出**四范式演进**（提示词 → 上下文/工作流 → Harness → 模型原生训练与协同进化），并用 SWE-bench、Terminal-Bench 2.0、WebArena 三大基准的对照数据量化了"同模型不同 Harness"的差距。
 
+4 月的《Externalization in LLM Agents》又从另一个方向统一了这片领域：把**记忆、技能、协议、Harness 工程看作同一主题——外化（externalization）——的四种子学科**，梳理了执行轨迹如何在 skills 与协议之间流入外置记忆、再作为任务相关内容回流给 Agent 的完整循环。这为"Harness 是外化知识的运行时形态"提供了跨领域的概念地图，也解释了为什么 Skill（外化的过程性知识）与 NLAH（可版本控制的 Harness 文档）会是同一个方向的两张面孔。
+
 ### 2.4 一个更精确的比喻：Harness 是操作系统
 
 "马具"比喻抓住了"约束与引导"，但低估了 Harness 的复杂度——它不只是缰绳，而是一整套被管理的运行时基础设施。Philipp Schmid（前 Google DeepMind、Hugging Face）给出了一个更贴切的类比：
@@ -159,6 +161,16 @@ Harness 工程正在从一门"手工工艺"变成一门"自动科学"。
 
 2026 年 8 月，综述《The Path to Recursive Self-Improving Agents》把这条轨迹正式形式化：提出**五级分级标准**（从手动改进到通用递归自改进），并把基础模型、Agent Harness、Agent 数据系统、Agent 训练器与支配它们改进的机制建模为一个**耦合系统**——自改进不再是单点技术，而是覆盖"组件内自改进"与"跨组件共改进"的统一研究框架。这为评估一个团队的自进化成熟度提供了参照系：你在第几级，到下一级还差什么。
 
+**2026 年下半年：自进化 Harness 的再评估危机**
+
+这条高歌猛进的路线随即遭遇了第一次系统性再评估——不是否定自进化本身，而是把"怎么衡量自进化的收益"推成了焦点问题。
+
+7 月，华盛顿大学等机构的《Rethinking the Evaluation of Harness Evolution for Agents》（Hajishirzi / Tsvetkov 组）对上述工作提出两条方法论质疑：**其一，harness 进化本身就是迭代搜索**——反复评估、修订候选配置，与 agentic test-time scaling 本质同源，因此必须在**对齐反馈与推理预算**的条件下与简单的任务级搜索基线对比，才能区分收益来自"更好的 harness 设计"还是"单纯的更多搜索"；**其二，搜索与最终评估共用同一个公开基准**，报告的增益有过拟合到该任务集的风险。在 Terminal-Bench 2.1 上对 GPT-5.4 与 Claude Opus 4.6 的对照实验结论泼了冷水：**自动 harness 进化并不稳定地优于简单 test-time scaling，且向 held-out 任务的泛化有限**。
+
+9 月，《Bad Genius: Counterfactual-Guided Harness Evolution Beyond Task-Specific Shortcuts》进一步指出作弊的藏身处：常用的 task holdout 只变换语义任务、却保持基准协议不变，一个"天才作弊者"式的 Proposer 仍能产出**靠协议捷径而非真实能力**得分的 harness——对策是反事实引导加预注册的 fresh-world 确认（论文名致敬电影《天才枪手》）。同期出现两条建设性路线：**ModularRSI** 把递归自改进（RSI）以模块化、可泛化的方式扩展到 agent harness，正面回应泛化质疑；**HarnessDev** 则干脆把"能否创建和进化自己的 harness"本身变成被评估的能力——harness 从改进工具升格为评估对象。
+
+这场再评估的校正意义在于：Gated QD 的"确定性记功 + sealed test"恰好是 Rethinking 所呼吁的公平协议的先行实现——**自进化 harness 的可信度不取决于进化算法多聪明，而取决于评估协议多严格**：预算对齐的基线、held-out 泛化、协议层的反作弊确认，缺一不可。
+
 ### 3.6 Loop Engineering：当 Harness 装上时钟（2026.06）
 
 2026 年 6 月 7 日，一个概念在硅谷 AI 圈集中爆发。三个人——代表两个阵营——**独立表达了完全相同的观点**。
@@ -264,6 +276,16 @@ Loop Engineering 的概念在学术界有独立的、更早的研究线索：
 | [Continual Harness](https://arxiv.org/abs/2605.09998)（2026.05） | 无重置自改进 Harness，从轨迹数据自动优化 prompts/sub-agents/skills/memory |
 
 学术界的共识方向与工业界一致：**从随机循环 → 确定性格局 → 自我进化闭环。** Loop Engineering 是这条线上最新的工程实践落点。
+
+#### Symphony：从管理 Agents 到管理 Work（2026.04）
+
+Loop Engineering 概念爆发不到三个月，OpenAI 给出了官方落地。4 月 27 日开源的 Symphony（GitHub 26.9k stars）把定位说得毫不含糊：**"Symphony works best in codebases that have adopted harness engineering. Symphony is the next step——moving from managing coding agents to managing work."**
+
+它的机制是把 issue tracker（如 Linear）当作控制平面：监控看板 → 把项目工作拆成**隔离的自主实现运行**（isolated autonomous implementation runs）→ Agent 完成后提交 proof of work（CI 状态、PR 审查反馈、复杂度分析、走查视频）→ 被接受后安全落地 PR。工程师不再逐个监督 Codex，而是在更高一层管理工作本身。
+
+最符合 Harness 工程精神的是它的分发方式：**SPEC.md 优先**。官方首先推荐的不是安装参考实现（Elixir 写的实验品），而是把规格文档喂给你最喜欢的 coding agent，让它用你选择的语言把 Symphony 造出来——规格是一等公民，实现是可替换的。这与 NLAH（3.4 节）的"Harness 作为可版本控制文档"殊途同归。
+
+一个必要的清醒剂来自其自我定位："low-key engineering preview for testing in trusted environments"。编排层把准入控制交给了看板与 PR 流程，本身并不新增安全机制——受信环境仍是前提（呼应第七章：编排不是安全边界的替代品）。
 
 ### 3.7 图工程：Graph Engineering 的回归（2026.07）
 
@@ -645,6 +667,12 @@ SemaClaw 是一个开源多 Agent 应用框架，四个核心贡献都落在 Har
 
 对实践者的启示：个人 Agent 场景把 Harness 工程的门槛拉到了消费级——用户不会写提示词，但会承受权限失控的后果。**Harness 的质量从"工程团队的效率问题"变成了"终端用户的安全问题"**，这正是 7.4 多用户治理、7.5 确定性合规在个人场景的延伸。
 
+### 5.20 Faros：211 个真实任务的"开放模型均等器"实验
+
+Faros（AI 工程效能平台）2026 年 5 月发布的《Harness Engineering: A Guide to AI Coding Agents》提供了一个少见的**商业侧对照实验**：把 211 个真实工程任务跑过其模型路由评估框架，对比开放权重模型与前沿模型。结论：**配对高度优化的 harness 后，GLM-5.2、Kimi K2.6 等开放模型进入最高质量档，在真实编码任务上匹配甚至反超 Opus 4.8、GPT-5.5 等昂贵前沿路线**。解释与 Nemotron 实战（5.17）同构：工程师从不裸用模型，而是"透过 harness"用模型——harness 决定上下文怎么装载、工具怎么调用、失败怎么处理，因此成为**终极均衡器（the great equalizer）**——你未必需要为前沿模型的智力付溢价，前提是舍得在生产级 harness 上投资。
+
+该文还转述了 Anthropic 研究命名的三种 harness 级可解失败模式——**victory declaration bias**（未验证就宣告任务完成）、**context anxiety**（上下文将满时"恐慌性"赶工走捷径）、**one-shotting overreach**（一口气吞下整个问题，产出一团说不清的改动）——以及 **senior engineer tax**：AI 代码的表面质量越高，人类审查的认知负担反而越重（要在"读起来像资深工程师写的"代码里 hunting 微妙错误）。这些失败模式命名与 6.19 的度量体系，共同构成该文对方法论的贡献。
+
 ---
 
 ## 六、Harness 的六大核心组件
@@ -829,6 +857,16 @@ LangChain 的《Improving Agents is a Data Mining Problem》回答了团队最�
 
 同一篇文章的两个配套洞察：其一，evals 是 agent 的训练数据——爬山爬过的行为会固化进 agent，eval 集的质量就是 agent 的上限；其二，分析海量 trace 可以用微调过的小模型——窄任务上小开源模型判 trace 比前沿大模型更准且便宜数量级，token 成本换成基础设施成本。这与 Philipp Schmid 的"Harness is the Dataset"互为印证：**竞争优势正从提示词转向你从轨迹里挖出什么**。
 
+### 6.19 Harness 工程的度量：Session-to-PR 关联是地基
+
+Harness 优化到生产阶段后绕不开"怎么证明它值钱"。Faros 给出的答案是分阶段度量：**按你手里有什么数据排顺序，而不是一步到位上完美指标体系**。
+
+- **Stage 1（现有系统即可拉取）**：每合并 PR 的 AI 花费、AI 触达 PR 的合并时长、AI vs 人类 PR 的尺寸差、AI 代码两周内重写率（churn）、单位改动行数的审查耗时——先拿这些做基线，数据会告诉你五层 harness（工具编排/验证环/上下文与记忆/护栏/可观测性）哪层最值得投下一轮工程
+- **Stage 2（需新建关联基础设施）**：把每个 agent session 连到它产出的 PR，标注会话意图（实现/探索/问答），把 bug 和事故回溯到具体 agent 触达的 PR——由此解锁首次通过率（first-pass success）、agent 代码 30 天存活率（survival rate）、缺陷逃逸率（defect escape）
+- **Stage 3（需任务分类或问卷）**：任务复杂度在各工程级别上的分布变化、审查者信心与疲劳度——当作文化信号读，趋势比绝对值有用
+
+其中 **session-to-PR 关联是最难也最有价值的一块**：它是 Stage 2 全部上层指标的开关。Faros 的建议次序很明确——先建关联，再谈指标。配套的诊断口诀也值得抄下来：任务失败先查 harness（给了残缺上下文、跳过了验证步骤、路由到坏掉的工具连接）；成本攀升先查 token 浪费（冗余工具调用、重复上下文拉取、每次变更重跑评估）；开发者信心流失先查"改动不带理由"（harness 没把 agent 的推理带进 review，审查者只能自己猜意图）。
+
 ---
 
 ## 七、Agent 安全防护
@@ -1003,6 +1041,8 @@ Philipp Schmid（前 Google DeepMind）点出了基准的根本盲区：**静态
 
 2026 年 5 月，《AI Harness Engineering: A Runtime Substrate》把"可评估性"再往前推了一步——提出 **trace-based 评估协议**：把每一次 Agent 运行转成一个可审计的 **episode package**，里面不只是最终补丁，而是包含复现日志、失败归因、确定性需求检查和结构化验证报告。关键在于，这个 episode package 的"证据结构"随 harness 等级（H0–H3，见 4.4）系统化变化——低等级 harness 只能产出"一个补丁"，高等级 harness 能产出"为什么这个补丁是对的"的完整证据链。这把评估工程从"给结果打分"推进到了"让过程可审计"——而后者正是生产级 Agent 区别于 Demo 的本质（4.4 的六元组完整性结论也印证了这一点：能进生产的系统都补齐了评估接口 V 这一格）。
 
+下半年，评估工程把矛头转向了"自评估"本身。《Rethinking the Evaluation of Harness Evolution》证明：不与预算对齐的搜索基线比较、只在搜索所用的同一基准上报告成绩，harness 自进化的"增益"可能只是搜索预算与过拟合的混合物（详见 3.5 的再评估危机）。评估工程的最新前沿因此是**三层防作弊协议**：预算对齐基线、held-out 泛化、协议层反事实确认（Bad Genius）——评估一门"会自己改自己的系统"，比评估 Agent 本身又难了一个量级。
+
 ### 知识引擎（Knowledge Engines）
 
 当前的上下文工程处理的是"这次该放什么"。但真实项目包含比代码本身更重要的信息："为什么选了这个架构？""六个月前试过这个方案——为什么回滚了？"知识引擎旨在结合代码图谱（函数调用关系、依赖结构）、提交历史（代码为什么以及如何演变）和记忆系统（过往会话的经验教训），让 Agent 不仅"修改这个函数"，而是"理解这个函数为什么长成这样，然后修改它"。
@@ -1151,6 +1191,11 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Better Harnesses, Smaller Models: Building 90% Cheaper Agents via Automated Harness Adaptation](https://arxiv.org/abs/2607.08938)（arXiv，2026.07）——任务难度可从模型迁入 harness，SLM+适配 harness 恢复 89.7% LLM 表现且仅 4% 成本；反证"harness 补偿模型"方向，21 个 task-SLM 对中 16 个显著提升
 - [The Path to Recursive Self-Improving Agents: Foundation, Framework, and Future Directions](https://www.preprints.org/manuscript/202608.0051)（Preprints，2026.08）——自改进 Agent 系统综述：五级分级标准（手动改进→通用递归自改进）+ 基础模型/Harness/数据系统/训练器/改进机制五组件耦合框架 + 组件内自改进与跨组件共改进 taxonomy
 - [SemaClaw: A Step Towards General-Purpose Personal AI Agents through Harness Engineering](https://arxiv.org/abs/2604.11548)（arXiv，2026.04）——个人 Agent（OpenClaw 场景）的 harness 工程落地：DAG 两阶段混合编排 + PermissionBridge 行为安全 + 三层上下文管理 + agentic wiki；"harness 层成为架构差异化主战场"的规模化实证
+- [Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering](https://arxiv.org/abs/2604.08224)（arXiv，2026.04）——把记忆、技能、协议、Harness 工程统一为"外化"主题的四种子学科，梳理执行轨迹在外置记忆与 Agent 之间的回流循环
+- [Rethinking the Evaluation of Harness Evolution for Agents](https://arxiv.org/abs/2607.12227)（arXiv，2026.07，v2 2026.08）——自进化 harness 的再评估：harness 进化须与预算对齐的 test-time scaling 基线比较 + held-out 泛化验证；Terminal-Bench 2.1 上自动 harness 进化不稳定优于简单搜索且泛化有限
+- [HarnessDev: Can LLMs Create and Evolve Their Own Agent Harness?](https://arxiv.org/abs/2609.01437)（arXiv，2026.09）——把"创建和进化自己的 harness"本身作为评估对象，harness 从改进工具升格为被评估的能力
+- [ModularRSI: Modular and Generalizable Recursive Harness Self-Improvement](https://arxiv.org/abs/2609.14857)（arXiv，2026.09）——把递归自改进（RSI）以模块化、可泛化方式扩展到 agent harness，正面回应自进化泛化质疑
+- [Bad Genius: Counterfactual-Guided Harness Evolution Beyond Task-Specific Shortcuts](https://arxiv.org/abs/2609.18366)（arXiv，2026.09）——task holdout 只换语义任务不换基准协议，作弊 harness 仍可通过；反事实引导 + 预注册 fresh-world 确认对抗协议捷径
 
 ### 官方资源
 - [2026 Agentic Coding Trends Report](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf)（Anthropic）
@@ -1180,6 +1225,7 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Agent Observability Needs Feedback to Power Learning](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning)（LangChain，2026.05）——trace 必要但不充分，反馈须附着于轨迹存储；四类反馈源（直接/间接用户、LLM-as-judge、确定性规则）；model/harness/context 三层失败归因；store traces + store feedback + generate feedback
 - [Improving Agents is a Data Mining Problem](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem)（LangChain，2026.07）——HE→FT→HE 三明治策略：harness 工程对多数团队够用（快反馈、高带宽），撞智能天花板再微调；Terminal Bench 2.0 纯 harness 爬山 +13.7%；小模型判 trace 比大模型便宜数量级
 - [3 Years of Graph Engineering with LangGraph](https://www.langchain.com/blog/3-years-of-graph-engineering-with-langgraph)（LangChain，2026.07）——graph engineering 与 loop/harness 工程同谱系；图 vs agentic 循环的决策边界（结构可预知用图、开放探索用核心循环、节点可为完整 agent run）；生产 Agent 图不是 DAG
+- [An open-source spec for Codex orchestration: Symphony](https://openai.com/index/open-source-codex-orchestration-symphony/)（OpenAI，2026.04；[GitHub 26.9k stars](https://github.com/openai/symphony)）——harness engineering 的官方下一步："从管理 coding agents 到管理 work"；Linear 看板作控制平面、隔离自主实现运行、proof of work（CI/审查/复杂度/走查视频）；SPEC.md 优先——让任意 coding agent 按规格自行实现
 
 ### 深度解读
 - [Engineering Rigor Doesn't Disappear — It Relocates: Four Years of AI Agentic Patterns](https://bits-bytes-nn.github.io/insights/agentic-ai/2026/04/05/evolution-of-ai-agentic-patterns-en.html)——从提示词到上下文到 Harness 的完整演进史
@@ -1191,3 +1237,4 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Harness Engineering for Self-Improvement](https://lilianweng.github.io/posts/2026-07-04-harness/)（Lilian Weng，2026.07）——上半年最系统的单篇 harness 综述：prompt→structured context→workflow→harness→optimizer code 演进框架，梳理 ACE/MCE/Self-Harness/AHE/SIA 全系，并对核心论点给出能力区间细化
 - [The importance of Agent Harness in 2026](https://www.philschmid.de/agent-harness-2026)（Philipp Schmid，2026.01）——Harness 即操作系统的类比（Model=CPU / Context=RAM / Harness=OS / Agent=App）；context durability 作为新瓶颈（静态榜单测不出第 50 步后的漂移）；"Harness is the Dataset"——竞争优势从提示词转向 Harness 捕获的轨迹数据
 - [Agent Engineering in 2026: The Harness Is the Product](https://markdown.engineering/blog/2026-04-12-agent-engineering-2026)（Markdown Engineering / Noah Greenfield，2026.04）——"restart engineering"论断：2026 Agent 工程的核心是跨会话存续的 durable stack；veto durability（负面知识 / decisions.md）、replay safety（resume 不破坏现实）、显式 stop conditions；Georgiev 16→2 Agent 的生产案例
+- [Harness Engineering: A Guide to AI Coding Agents](https://www.faros.ai/blog/harness-engineering)（Faros，2026.05，更新 2026.07）——五层 harness（工具编排/验证环/上下文与记忆/护栏/可观测性）；211 真实任务实测：GLM-5.2/Kimi K2.6 + 优化 harness 匹配反超 Opus 4.8/GPT-5.5（开放模型均等器）；Anthropic 失败模式三命名（victory declaration bias / context anxiety / one-shotting overreach）；senior engineer tax；Stage 1-3 分阶段度量体系与 session-to-PR 关联方法论
