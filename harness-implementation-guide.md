@@ -397,6 +397,8 @@ Simon Willison 的框架很好记：**Agent 最多同时拥有下面三样里的
 落地（全是 §5 和 §7 的机制）：
 - **Permissions deny/ask**：`.env`、secrets/、生产 migration、`rm -rf` 全进 deny；`git push`、装依赖进 ask
 - **Policy as Code = PreToolUse hook**：§7 例 2 那种确定性拦截，不靠提示词
+- **guard 双向测试**：每条拦截规则写两类用例——该拦的必须拦、该放的必须放（只测拦截会让收紧永远安全、放松不可见，规则慢慢漂成拦死一切；普查显示 60% 的 harness 从不测自己）
+- **每个 hook 记来历**：一行注明这条规则为哪次事故而存在、什么条件下可删（模型升级后据此安全清理死重，别让为旧模型弱点打的补丁永远堆着）
 - **凭据不进仓库**，更不进 CLAUDE.md——密钥只在 `env` 或运行时注入
 - **可观测性**：配 statusline 显示当前分支/token 用量/模型；PostToolUse hook 写审计日志
 

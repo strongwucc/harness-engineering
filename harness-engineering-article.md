@@ -673,6 +673,22 @@ Faros（AI 工程效能平台）2026 年 5 月发布的《Harness Engineering: A
 
 该文还转述了 Anthropic 研究命名的三种 harness 级可解失败模式——**victory declaration bias**（未验证就宣告任务完成）、**context anxiety**（上下文将满时"恐慌性"赶工走捷径）、**one-shotting overreach**（一口气吞下整个问题，产出一团说不清的改动）——以及 **senior engineer tax**：AI 代码的表面质量越高，人类审查的认知负担反而越重（要在"读起来像资深工程师写的"代码里 hunting 微妙错误）。这些失败模式命名与 6.19 的度量体系，共同构成该文对方法论的贡献。
 
+### 5.21 Marmelab 领域普查：246 个仓库的实证状态
+
+如果 5.1-5.20 讲的是"顶尖实践者做到了什么"，那么 Marmelab 2026 年 9 月的《The State Of AI Harness Engineering 2026》回答的是相反的问题：**绝大多数团队实际做到了什么**。这份研究审计了 246 个开源仓库、对照 145 个与 AI 无关的大型项目（Rails、Kubernetes、Postgres……），并通读 57 篇文献，是目前对这门学科"真实水位"最完整的一次普查。
+
+开篇数据重申了 5.11 与 5.15 的结论：**同一个模型，换 8 个不同的 harness，跑同样的 25 个任务，成功率从 68% 到 88%**。之后是更扎心的差距数据——
+
+**写规则的人多，装控制的人少**：63% 的大型开源项目都有 agent 指令文件，但 145 个项目加起来只有 14 个 hooks、4 个 subagent；391 个仓库中仅 12 个有 `deny` 规则、22 个有 `PreToolUse` 钩子；使用 subagent 的仓库中位数上只有 1/4 的 subagent 限制了工具列表，其余全部"看得见一切"。
+
+**极少有 harness 检查自己**：97 个大到可测试的 harness 中，**60% 既无 test 也无 eval**——"它们就是一堆 markdown 指令，没人知道是否成立"。26 个带 eval 用例的仓库里，只有 1 个（flow-next）发布了 before/after 对比与可复现方法。
+
+**harness 正在被 AI 写**：2025 年 1 月以来触及 harness 的提交中 **25% 带 AI 签名**（作者自认是下限）；79 个仓库里 52 个的 harness 比"它所治理的代码"更 AI 化（中位数 16% vs 9%）。
+
+研究还收录了三条硬核负结果与一条正结果：NLAH 消融实验显示**加一个 reviewer agent 反而使成功率下降 8pp**；Microsoft 的 Azure 运维 agent 团队一度扩到 50+ 专家角色，**超过 4 次 agent 间交接的任务几乎全失败**，最终回滚到少数通才 agent；一项 113 人实验显示**预写权限规则的监管者比逐操作审批的监管者少拦截 20.1 个百分点**的越权操作（93% 的权限弹窗都会被批准——"以弹窗结尾的规则不是规则"）；反面，Vercel **砍掉 agent 80% 的工具后，同一模型成功率从 80% 升到 100%，token 减半、延迟从 724 秒降到 141 秒**。对应的方法论五条：test/eval 你的 harness（且 guard 要双向测——"单侧 eval 制造单侧优化"）、按真实失败反向构建而非预防性堆料、能用脚本强制的规则别写在散文里、让 agent 启动真应用做验证、给每个 control 写 expiry condition 与其背后的事故记录（OpenAI 用常驻的 doc-gardening agent 自动清陈旧文档）。
+
+这份普查与 6.11 的 ratchet、6.16 的熵管理形成了呼应：**harness 不是一次性的设计成果，而是一个需要测试、度量、除草的活系统**——而且它自己也在被 AI 写，腐化速度只会更快。
+
 ---
 
 ## 六、Harness 的六大核心组件
@@ -916,6 +932,25 @@ PII 脱敏、内容审核、HIPAA 这类要求"每一次都必须触发"的策�
 
 2026 年 7 月的《From Prompts to Contracts》给这条原则提供了最干净的量化对照。在同一个企业问答场景上：**只靠提示词约束时，推荐用语违规和内部轨迹泄露会漏到读者端；换成代码所有的 validation（围绕一个"可替换的组合边界"组织），harness 把这两类违规全部挡住，且保留全部 utility（120/120）**；而一个外挂的 guardrail 虽然也能挡住违规，却因 over-refuse 把可用性压到 88/120。结论很硬——**同样达到"安全"，只有代码所有的强制执行能同时保住安全和可用**：提示词两头不靠，外挂 guardrail 牺牲可用性。这正是"无法用提示词实现合规"的实证版本，也把确定性合规的边界从"PII/审核"扩到了"可审计的契约执行"（answer contracts、entity routing、output hygiene 都可被代码验证，且跨模型替换仍成立）。
 
+### 7.6 多层防御：Agent 行为是四层组件的乘积
+
+Anthropic 2026 年 4 月的《Trustworthy agents in practice》给安全章节补上了最后一块拼图——**防御的完整清单**。文章把 Agent 拆成四层组件，并断言"Agent 的行为取决于四层的乘积"：
+
+1. **模型**——"智能"所在，训练塑造其知识与推理方式；
+2. **Harness**——模型运行其下的指令与护栏（如"超过一百美元要上报""不经确认不得提交报销"）；
+3. **工具**——模型能调用的服务与应用（邮件、日历、报销系统）；
+4. **环境**——Agent 运行于何处、能访问哪些文件/网站/系统。
+
+关键论点是：**一个训练良好的模型，仍然会被配置不当的 harness、过度放权的工具或暴露的环境攻破**。多数 AI 政策讨论聚焦模型层，但生产事故往往出在其他三层——这把"致命三要素"（7.1）从"输入的暴露面分析"扩展成了"系统的组件级审计清单"。
+
+方法论上有三点值得吸收：
+
+- **监督从"单步"上移到"策略"**：逐操作审批在高频任务里制造摩擦，用户会疲劳后机械放行。Claude Code 的 Plan Mode 让用户审查、编辑并整体批准一份行动计划，再于执行中随时介入——把人类判断放在"用户真正想行使判断的层面"。这与 5.21 的负结果互为印证：预写规则和逐弹窗审批都会失效，**整体计划审批 + 执行中可介入**是更可持续的中间态。
+- **模型侧要训练"何时该停下来问"**：Anthropic 在训练中构造歧义场景并强化"暂停而非假设"的选择；数据显示复杂任务上用户打断频率只比简单任务略高，但 Claude 主动 check-in 的比率翻了一倍——**校准"何时行动、何时交还决策"本身是可训练的能力**。
+- **prompt injection 没有单层银弹**：模型训练识别注入模式 + 生产流量监控拦截真实攻击 + 外部红队实测——三层叠加"仍然不是保证"。这与 6.12 中间件的确定性合规形成分工：模型层做概率性识别，harness 层做确定性兜底，两层都不能省。
+
+文章最后把镜头拉到生态层面：呼吁标准化 prompt injection 防御基准（NIST）、跨公司证据共享，并强调开放协议的价值——MCP 已捐赠给 Linux Foundation 的 Agentic AI Foundation，因为"安全属性应该一次性设计进基础设施，而不是每个部署各打一次补丁"。**Agent 安全不是任何一家公司能独立完成的工作**——这句话把 7.1-7.5 的工程清单接入了行业标准化的时间线。
+
 ---
 
 ## 八、Harness 工程的三个设计原则
@@ -1066,6 +1101,8 @@ Philipp Schmid（前 Google DeepMind）点出了基准的根本盲区：**静态
 
 两项工作合在一起，勾勒出机器人 Harness 的完整光谱：**Physical AI Harness 治理"机器人如何安全执行"，HARBOR 治理"机器人策略如何被高效训练"**——同一套 harness 原则（分解、约束、验证、复用）从运行时延伸到了研发时。
 
+2026 年 8 月，Anthropic 发布 **Model Hardware Standard（MHS）研究预览**，把这条光谱补上了第三个端口——**标准协议层**。MHS 是一份让 AI Agent 安全操作物理设备的共享规格（与 HHMI Janelia 研究园区合作开发），面向科研实验室与先进制造：Agent 可并行操作显微镜、液体处理器、机械臂等多种仪器，执行从常规药物发现实验到量子计算机激光校准的任务。其要解决的问题正是具身 Harness 的集成瓶颈：实验室或产线集成一台硬件通常需要数周甚至数月的专家定制，而 MHS 把集成工作压缩到小时或分钟级，并让 Agent 具备实时调参与硬件错误自恢复能力。从 Physical AI 的运行时中间件、HARBOR 的研发时流水线到 MHS 的标准协议，具身 Harness 的三层基础设施正在同时成型——**数字世界里由 MCP 扮演的"工具接口标准化"角色，物理世界正在由 MHS 重演**。
+
 ### Meta-Harness：自动化的 Harness 设计
 
 2026 年 3 月的 arXiv 论文《Meta-Harness》提出了一个前沿问题：**Harness 的设计过程本身能否被自动化？** 传统上，工程师根据经验手动调整 Linter 规则、提示词策略和反馈循环。Meta-Harness 探索用文本优化技术端到端地搜索最优 Harness 配置——自动发现哪条规则真正提升了 Agent 成功率，哪条只是噪音。
@@ -1105,6 +1142,21 @@ NLAH（Natural-Language Agent Harnesses）则从另一个角度切入：**Harnes
 更值得关注的是真正的趋势：**harness 不是在消失，而是在从"人类手写"转向"模型自改写"**。Self-Harness、AHE、[HASE](https://arxiv.org/abs/2607.03935)、Gated QD 都是这个方向——harness 工程师的工作从"写规则"变成"写让模型改规则的 loop"。甚至 [Better Harnesses, Smaller Models](https://arxiv.org/abs/2607.08938) 证明方向可逆：把任务难度从模型**迁入** harness，小模型 + 适配 harness 就能追上大模型，成本降约 90%。
 
 所以对"模型变强，harness 要不要继续投"的正确回答是：**继续投，但投在不会随模型变强而贬值的那一层**。可剥离性（反模式 7）就是把这两层分开的工程纪律——例行支撑做成可删的，约束治理做成不可删的。赌"模型会强到不需要任何外部约束"，和所有现有证据相悖。
+
+### 源码解剖定论：2026 上半年，Harness 完成了从工具到平台的转变
+
+2026 年 7 月，一篇 83 页的实证研究《Harness Engineering: Anatomy, Architecture, and Evolution of Coding Agents》给本节的所有争论提供了迄今最重的证据底座：研究者对 **11 个生产级 coding harness**（Claude Code、Codex CLI、Gemini CLI、OpenHands、Aider、OpenCode、OpenClaw 等）外加首个 meta-harness **Omnigent** 做了全文源码解剖，定义了 harness 的 **7 个规范子系统**（循环、工具、上下文管理、安全控制、编排、扩展面等），对每个子系统给出最小实现与最大实现，并提炼出 **13 条跨系统观察与 29 个复现设计模式**。
+
+其中两条"缺席"最有说服力——在约 **400 万行** Python/TypeScript/Rust 代码中：
+
+- **没有任何一个 agent runtime 导入通用 agentic framework**；
+- **没有任何一个用向量嵌入检索代码**。
+
+整个领域运行在手写的 async loop 与确定性检索（grep 类）之上。这给 3.x 的范式迁移史和"Bitter Lesson"之争同时盖了章：**顶尖实践者用脚投票的答案，既不是"上框架"，也不是"上向量库"，而是把控制流握在自己手里**——与 Is Grep All You Need（PwC）的检索实证、browser-use 的极简主义心法完全互证。
+
+另三条观察指向生态走向：**SKILL.md 技能的采用率（9/11）超过了 MCP（8/11）**——文件式过程性知识先于协议式工具集成成为标配；**ACP（Agent Client Protocol）已进入 6 个系统**，并催生了除"开发者/终端用户"之外的第三种角色——**harness hosting（托管别人的 harness）**；而因为研究对原始 8 个系统做的是**重新 pin 版本**而非换样本，它还附赠了一个受控纵向样本——同一批 harness 跨一个季度的源码 diff 显示：**趋同正在变成模仿，行为策略正从 prompt 散文迁移到配置文件**。
+
+论文的收束论断与本章标题呼应：**2026 上半年，coding harness 完成了从工具到平台的转变**——它不再是包在模型外面的脚本，而是承载技能生态、托管服务与组织行为策略的平台层。文章最后给出 18 条设计建议和一个 90 行的最小可行 harness 脚手架——如果你只读一篇论文来理解这门学科的实证基础，就是这篇。
 
 ---
 
@@ -1196,6 +1248,7 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [HarnessDev: Can LLMs Create and Evolve Their Own Agent Harness?](https://arxiv.org/abs/2609.01437)（arXiv，2026.09）——把"创建和进化自己的 harness"本身作为评估对象，harness 从改进工具升格为被评估的能力
 - [ModularRSI: Modular and Generalizable Recursive Harness Self-Improvement](https://arxiv.org/abs/2609.14857)（arXiv，2026.09）——把递归自改进（RSI）以模块化、可泛化方式扩展到 agent harness，正面回应自进化泛化质疑
 - [Bad Genius: Counterfactual-Guided Harness Evolution Beyond Task-Specific Shortcuts](https://arxiv.org/abs/2609.18366)（arXiv，2026.09）——task holdout 只换语义任务不换基准协议，作弊 harness 仍可通过；反事实引导 + 预注册 fresh-world 确认对抗协议捷径
+- [Harness Engineering: Anatomy, Architecture, and Evolution of Coding Agents](https://arxiv.org/abs/2609.00006)（Barbaste et al.，arXiv，2026.07，83 页）——迄今最完整的 harness 源码解剖实证：11 个生产级 coding harness + Omnigent meta-harness，7 个规范子系统（含最小/最大实现）、13 条跨系统观察、29 个复现设计模式；约 400 万行代码中零框架导入、零向量检索——领域运行在手写 async loop 与确定性检索上；SKILL.md 采用率（9/11）超 MCP（8/11），ACP 进 6 系统并催生 harness hosting 第三角色；受控纵向 diff 显示行为策略从 prompt 散文迁向配置；论断"2026 上半年 harness 完成从工具到平台的转变"；附 18 条设计建议 + 90 行最小 harness scaffold
 
 ### 官方资源
 - [2026 Agentic Coding Trends Report](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf)（Anthropic）
@@ -1226,6 +1279,8 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Improving Agents is a Data Mining Problem](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem)（LangChain，2026.07）——HE→FT→HE 三明治策略：harness 工程对多数团队够用（快反馈、高带宽），撞智能天花板再微调；Terminal Bench 2.0 纯 harness 爬山 +13.7%；小模型判 trace 比大模型便宜数量级
 - [3 Years of Graph Engineering with LangGraph](https://www.langchain.com/blog/3-years-of-graph-engineering-with-langgraph)（LangChain，2026.07）——graph engineering 与 loop/harness 工程同谱系；图 vs agentic 循环的决策边界（结构可预知用图、开放探索用核心循环、节点可为完整 agent run）；生产 Agent 图不是 DAG
 - [An open-source spec for Codex orchestration: Symphony](https://openai.com/index/open-source-codex-orchestration-symphony/)（OpenAI，2026.04；[GitHub 26.9k stars](https://github.com/openai/symphony)）——harness engineering 的官方下一步："从管理 coding agents 到管理 work"；Linear 看板作控制平面、隔离自主实现运行、proof of work（CI/审查/复杂度/走查视频）；SPEC.md 优先——让任意 coding agent 按规格自行实现
+- [Trustworthy agents in practice](https://www.anthropic.com/research/trustworthy-agents)（Anthropic，2026.04）——Agent 四层组件模型（model/harness/tools/environment）与五原则的落地版：Plan Mode 把人类监督从单步审批上移到整体策略审批；训练模型"不确定时暂停而非假设"（复杂任务上 check-in 率翻倍）；prompt injection 多层防御（模型识别 + 流量监控 + 红队，无单层银弹）；生态倡议——NIST 注入防御基准、证据共享、MCP 捐赠 Linux Foundation
+- [Previewing the Model Hardware Standard](https://www.anthropic.com/news/model-hardware-standard-research-preview)（Anthropic，2026.08）——具身 Harness 的标准协议层：与 HHMI Janelia 合作，让 Agent 并行安全操作显微镜/液体处理器/机械臂等物理仪器，把硬件集成从数周压缩到小时级，支持实验参数实时调整与硬件错误自恢复——MCP 的"工具接口标准化"角色在物理世界重演
 
 ### 深度解读
 - [Engineering Rigor Doesn't Disappear — It Relocates: Four Years of AI Agentic Patterns](https://bits-bytes-nn.github.io/insights/agentic-ai/2026/04/05/evolution-of-ai-agentic-patterns-en.html)——从提示词到上下文到 Harness 的完整演进史
@@ -1238,3 +1293,4 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [The importance of Agent Harness in 2026](https://www.philschmid.de/agent-harness-2026)（Philipp Schmid，2026.01）——Harness 即操作系统的类比（Model=CPU / Context=RAM / Harness=OS / Agent=App）；context durability 作为新瓶颈（静态榜单测不出第 50 步后的漂移）；"Harness is the Dataset"——竞争优势从提示词转向 Harness 捕获的轨迹数据
 - [Agent Engineering in 2026: The Harness Is the Product](https://markdown.engineering/blog/2026-04-12-agent-engineering-2026)（Markdown Engineering / Noah Greenfield，2026.04）——"restart engineering"论断：2026 Agent 工程的核心是跨会话存续的 durable stack；veto durability（负面知识 / decisions.md）、replay safety（resume 不破坏现实）、显式 stop conditions；Georgiev 16→2 Agent 的生产案例
 - [Harness Engineering: A Guide to AI Coding Agents](https://www.faros.ai/blog/harness-engineering)（Faros，2026.05，更新 2026.07）——五层 harness（工具编排/验证环/上下文与记忆/护栏/可观测性）；211 真实任务实测：GLM-5.2/Kimi K2.6 + 优化 harness 匹配反超 Opus 4.8/GPT-5.5（开放模型均等器）；Anthropic 失败模式三命名（victory declaration bias / context anxiety / one-shotting overreach）；senior engineer tax；Stage 1-3 分阶段度量体系与 session-to-PR 关联方法论
+- [The State Of AI Harness Engineering 2026](https://marmelab.com/blog/2026/09/24/the-state-of-ai-harness-engineering-2026.html)（François Zaninotto / Marmelab，2026.09）——246 仓库 + 145 大型非 AI 项目对照 + 57 篇文献的领域普查：同一模型换 8 个 harness 成功率 68%→88%；63% 项目有指令文件但 145 个项目合计仅 14 hooks/4 subagents；60% 的 harness 既无 test 也无 eval；25% harness 提交带 AI 签名；ETH Zurich 机器生成 context files 负增益 +20% 成本；481 个 CLAUDE.md 仅 4.4% 安全规则有真实 control 背书；负结果集（reviewer agent -8pp、Microsoft >4 次交接必失败、预写权限规则少拦 20.1pp）与正结果（Vercel 砍 80% 工具成功率 80%→100%）；五条方法论（双向 guard 测试、按失败反向构建、脚本替代散文规则、agent 跑真应用、expiry condition 记录）

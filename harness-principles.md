@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.17
-**更新日期**: 2026-09-23
+**版本**: v1.18
+**更新日期**: 2026-10-22
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -97,6 +97,10 @@
 | [Externalization in LLM Agents](https://arxiv.org/abs/2604.08224) | 多机构联合（2026.04） | 记忆/技能/协议/Harness 工程统一为"外化"主题的四种子学科，跨领域概念地图 |
 | [Symphony: Codex 编排开放规格](https://openai.com/index/open-source-codex-orchestration-symphony/) | OpenAI（2026.04，GitHub 26.9k stars） | harness engineering 官方下一步：从管理 agents 到管理 work；Linear 作控制平面、隔离自主实现运行、proof of work；SPEC.md 优先——规格一等公民，实现可替换 |
 | [Harness Engineering: A Guide to AI Coding Agents](https://www.faros.ai/blog/harness-engineering) | Faros（2026.05） | 211 真实任务实测开放模型均等器（GLM-5.2/Kimi K2.6 + 优化 harness 反超 Opus 4.8/GPT-5.5）；五层 harness；Anthropic 失败模式三命名；Stage 1-3 分阶段度量 + session-to-PR 关联 |
+| [Anatomy, Architecture, and Evolution of Coding Agents](https://arxiv.org/abs/2609.00006) | Barbaste et al.（2026.07，83 页） | 11 个生产 coding harness + Omnigent meta-harness 源码解剖：7 规范子系统、13 观察、29 设计模式；400 万行中零框架导入、零向量检索；SKILL.md（9/11）超 MCP（8/11）；受控纵向 diff——行为策略从 prompt 散文迁向配置；"harness 从工具到平台"实证定论 |
+| [Trustworthy agents in practice](https://www.anthropic.com/research/trustworthy-agents) | Anthropic（2026.04） | Agent 四层组件模型（model/harness/tools/environment）——"行为是四层乘积，好模型也会被坏 harness 攻破"；Plan Mode 把监督从单步审批上移到策略层；check-in 率可训练（复杂任务翻倍）；prompt injection 多层防御无单层银弹；MCP 捐赠 Linux Foundation |
+| [The State Of AI Harness Engineering 2026](https://marmelab.com/blog/2026/09/24/the-state-of-ai-harness-engineering-2026.html) | Marmelab（2026.09） | 246 仓库 + 145 对照 + 57 文献领域普查：同模型换 8 harness 成功率 68%→88%；63% 有指令文件但仅 14 hooks/4 subagents；60% harness 无 test/eval；25% harness 提交 AI 签名；负结果集（reviewer agent -8pp、>4 次交接必失败、预写规则少拦 20.1pp）；Vercel 砍 80% 工具成功率反升 |
+| [Previewing the Model Hardware Standard](https://www.anthropic.com/news/model-hardware-standard-research-preview) | Anthropic（2026.08） | 具身 Harness 的标准协议层：AI Agent 安全并行操作物理仪器（显微镜/液体处理器/机械臂），硬件集成从数周到小时级，实时调参 + 硬件错误自恢复——MCP 的工具标准化角色在物理世界重演 |
 
 ---
 
@@ -278,8 +282,8 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D5：安全防护
 
-> 来源：Simon Willison（致命三要素）+ Meta AI（二选一规则）
-> 原则：处理不可信输入 + 访问敏感数据 + 修改状态 = 安全事故不可避免。最多同时拥有两个。
+> 来源：Simon Willison（致命三要素）+ Meta AI（二选一规则）+ [Trustworthy agents in practice](https://www.anthropic.com/research/trustworthy-agents)（Anthropic，2026.04）
+> 原则：处理不可信输入 + 访问敏感数据 + 修改状态 = 安全事故不可避免。最多同时拥有两个。Agent 行为是 model/harness/tools/environment 四层组件的乘积——好模型也会被配置不当的 harness、过度放权的工具或暴露的环境攻破。
 
 #### D5.1 致命三要素识别
 
@@ -308,18 +312,19 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 多用户/多租户场景有独立的安全治理层（非仅依赖提示词约束——参考 Harness-MU 的执行钩子强制执行权限边界）
 - [ ] 确定性合规由中间件钩子强制执行（PII 脱敏、内容审核等"每次必触发"的策略用代码实现而非提示词——"无法用提示词实现 HIPAA 合规"，参考 Middleware Customization）
 - [ ] 契约验证围绕可替换的组合边界用代码强制（answer contracts / entity routing / output hygiene 由代码所有，跨模型替换仍成立；外挂 guardrail 会 over-refuse 牺牲可用性，提示词两头不靠——参考 Prompts to Contracts 的 120/120 vs 88/120）
+- [ ] 防御覆盖四层组件而非仅模型层（model/harness/tools/environment 各层有独立审计：harness 指令与护栏、工具最小权限、环境访问边界——"没有单层防御足够"，prompt injection 需模型识别 + 运行时拦截 + 红队实测多层叠加——参考 Trustworthy agents）
 
 **评估标准**：
 - 1 星：无安全意识，Agent 拥有完全权限
 - 3 星：有安全审查 Agent 但无结构性防护
-- 5 星：三要素识别 + 二选一规则 + Policy as Code + 自动化安全测试 + 多用户治理层
+- 5 星：三要素识别 + 二选一规则 + Policy as Code + 自动化安全测试 + 多用户治理层 + 四层组件纵深防御
 
 ---
 
 ### D6：测试与验证
 
-> 来源：Andrew Ng（Agentic 工作流）+ Anthropic（三 Agent 架构）+ [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning)（LangChain，2026.05）+ [Rethinking Harness Evolution](https://arxiv.org/abs/2607.12227)（2026.07）+ [Bad Genius](https://arxiv.org/abs/2609.18366)（2026.09）+ [Faros Harness Guide](https://www.faros.ai/blog/harness-engineering)（2026.05）
-> 原则：用 Agentic 工作流包装 GPT-3.5 超过 GPT-4 零样本表现——好的测试套件让 Agent 更安全地工作。
+> 来源：Andrew Ng（Agentic 工作流）+ Anthropic（三 Agent 架构）+ [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning)（LangChain，2026.05）+ [Rethinking Harness Evolution](https://arxiv.org/abs/2607.12227)（2026.07）+ [Bad Genius](https://arxiv.org/abs/2609.18366)（2026.09）+ [Faros Harness Guide](https://www.faros.ai/blog/harness-engineering)（2026.05）+ [State of AI Harness Engineering](https://marmelab.com/blog/2026/09/24/the-state-of-ai-harness-engineering-2026.html)（Marmelab，2026.09）
+> 原则：用 Agentic 工作流包装 GPT-3.5 超过 GPT-4 零样本表现——好的测试套件让 Agent 更安全地工作。Harness 自身也需要被测试——普查显示 60% 的 harness 既无 test 也无 eval，"一堆 markdown 指令，没人知道是否成立"。
 
 **检查项**：
 - [ ] 测试框架已配置（PHPUnit、Vitest、Playwright 等）
@@ -334,11 +339,13 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 反馈源覆盖多类（直接用户/间接行为信号/LLM-as-judge/确定性规则至少两类；已知失败模式优先编码为确定性规则，零模型调用——参考 Agent Observability 四类反馈源）
 - [ ] 评估协议防基准作弊（holdout 之外确认基准协议本身未被利用——task holdout 只换语义任务不换协议，作弊 harness 仍可走协议捷径；关键改动用反事实/fresh-world 确认，参考 Bad Genius）
 - [ ] Agent 工作有 session-to-PR 关联度量（agent 会话连到产出的 PR 并标注意图，支撑 first-pass success、代码存活率、缺陷逃逸率——按现有数据分阶段起步，参考 Faros Stage 1-3）
+- [ ] Harness 自身有双向 guard 测试（每条规则/hook 各测"该拦的拦住"与"该放行的放行"两类用例——只测拦截会让收紧永远安全、放松不可见，harness 漂向拦死一切；参考 Marmelab："单侧 eval 制造单侧优化"，codex-claude-code-config 63 用例测 12 个 guard）
+- [ ] 每个 control 有 expiry condition 与背后事故记录（一行注明该 hook/规则为哪次失败而存在；模型升级或架构变更后可安全判断去留，避免死重累积——参考 Marmelab 腐化治理与 OpenAI doc-gardening agent）
 
 **评估标准**：
 - 1 星：无测试基础设施
 - 3 星：有测试框架但覆盖集中在少数模块
-- 5 星：核心业务全覆盖 + 测试隔离 + Agent 自验证 + 端到端测试 + trace 反馈闭环
+- 5 星：核心业务全覆盖 + 测试隔离 + Agent 自验证 + 端到端测试 + trace 反馈闭环 + harness 自身双向测试与腐化治理
 
 ---
 
@@ -396,7 +403,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D9：Harness 透明度与可复现性
 
-> 来源：Stop Comparing LLM Agents Without Disclosing the Harness（2026.05）+ How Good Is Your Harness?（2026.05，统计归因实证：切换最佳 Harness 的增益 ≈ 切换最佳 LLM 的增益）
+> 来源：Stop Comparing LLM Agents Without Disclosing the Harness（2026.05）+ How Good Is Your Harness?（2026.05，统计归因实证：切换最佳 Harness 的增益 ≈ 切换最佳 LLM 的增益）+ [Anatomy of Coding Agents](https://arxiv.org/abs/2609.00006)（2026.07，受控纵向方法：原始 8 系统重新 pin 版本后跨季度源码 diff）
 > 原则：Harness 配置方差可能超过模型选择方差。未公开 Harness 规格的 Agent 基准测试结果应被视为不完整且可能误导。
 
 #### D9.1 Harness 规格文档
@@ -460,6 +467,7 @@ Agent 开始工作前就将其引向正确方向。
 指南和 Agent 分工很完善（软性层），但 Linter/CI/类型检查缺失（硬性层）。
 软性 Harness 告诉 Agent "应该做什么"，硬性 Harness 确保即使 Agent 忽略指南也不会出错。
 **后者才是生产级 Harness 的关键。**
+量化证据（Marmelab 2026.09 普查）：481 个公开 CLAUDE.md 中仅 **4.4%** 的安全规则有真实 control 背书（4-16% 区间）——"散文规则几乎从不被真正执行"；391 个仓库中仅 12 个有 deny 规则、22 个有 PreToolUse 钩子。规则写进文档 ≠ 规则会生效。
 
 ### 反模式 2：测试覆盖偏科
 
@@ -616,3 +624,4 @@ Level X（一句话总结）
 | 2026-08-04 | v1.15 | 补 1 篇 arXiv 权威来源（共 71 个）：HARBOR——把机器人 RL 工程流水线（建任务/奖励/调参）建模为 harness 问题，专门化 Agent + 标准化命令/artifact/可执行 gate + 去中心化并行试验与跨运行经验学习；6 基准 16 任务含 sim-to-real，补齐具身 Harness 的"研发时"端口（与 Physical AI Harness 的"运行时"端口互补）。article §12 具身 Harness 小节新增 HARBOR 段落 + "运行时/研发时"两端光谱综述。另：本轮检索到 2 个 OpenReview 候选（Towards Long-Horizon Agents、LLM-as-Code），因 API 返回空 + 页面验证墙无法验证真实性，按宁缺毋滥未纳入 |
 | 2026-08-21 | v1.16 | 补 5 个权威来源（共 76 个）：Recursive Self-Improving Agents 综述（五级分级 + 五组件耦合框架）、SemaClaw 个人 Agent Harness（2 篇学术论文）；Agent Observability Needs Feedback、Improving Agents is a Data Mining Problem（HE→FT→HE 三明治）、3 Years of Graph Engineering（3 篇 LangChain）。D4 新增改进分层决策 + 自改进分级路线图两项检查项、D6 新增 trace 反馈关联存储 + 多类反馈源两项检查项、D8 新增编排形态按可预知度选择检查项；D4/D6/D8 来源行与五星标准同步扩展。article 新增 §3.7 Graph Engineering 决策边界、§5.19 SemaClaw、§6.17 可观测性与反馈闭环、§6.18 三明治策略，§3.5 补自改进综述、§12 补 harness 溶解论引用；implementation-guide §9 补"失败→eval 反馈闭环"（含指南同步） |
 | 2026-09-23 | v1.17 | 补 7 个权威来源（共 83 个），主题"自进化再评估 + 编排范式"：Rethinking Harness Evolution（预算对齐基线 + held-out 泛化双重协议，Terminal-Bench 2.1 负面结果）、Bad Genius（协议层作弊与反事实引导）、ModularRSI、HarnessDev、Externalization in LLM Agents（5 篇学术论文）；OpenAI Symphony（harness engineering 官方下一步：管理 work 而非 agents，SPEC.md 优先，26.9k stars）、Faros Harness Guide（211 任务开放模型均等器 + session-to-PR 度量，2 篇行业文章）。D4 新增自进化增益公平归因检查项、D6 新增评估协议防基准作弊 + session-to-PR 关联度量两项检查项；新增反模式 15（自进化自证循环）。article 新增 §3.5 再评估危机段、§3.6 Symphony 小节、§5.20 Faros 案例、§6.19 session-to-PR 度量、§2.3 补 Externalization、§12 补三层防作弊协议；implementation-guide 同步度量与公平评估（含指南同步） |
+| 2026-10-22 | v1.18 | 补 4 个权威来源（共 86 个），主题"实证定论 + 安全四层 + 领域普查"：Anatomy of Coding Agents（Barbaste，83 页——11 生产 harness + Omnigent 源码解剖，400 万行零框架导入零向量检索，SKILL.md 超 MCP，行为策略 prompt 散文→配置，"工具到平台"定论）、Trustworthy agents in practice（Anthropic——model/harness/tools/environment 四层组件模型 + Plan Mode 策略层监督 + prompt injection 多层防御）、State of AI Harness Engineering 2026（Marmelab——246 仓库普查：60% harness 无 test/eval、25% AI 签名、负结果集 reviewer -8pp/>4 交接失败/预写规则少拦 20.1pp、Vercel 砍工具正结果）、Model Hardware Standard（Anthropic——具身 Harness 标准协议层，Physical AI 运行时 + HARBOR 研发时之外的第三端口）。D5 新增四层组件纵深防御检查项并扩 5 星、D6 新增 harness 自身双向 guard 测试 + control expiry condition 两项检查项并扩 5 星、D5/D6/D9 来源行补充；反模式 1（软硬失衡）补 Marmelab 4.4% 量化证据。article 新增 §5.21 Marmelab 普查案例、§7.6 多层防御、§12 源码解剖定论小节、§12 具身 Harness 补 MHS 段（含指南同步） |
