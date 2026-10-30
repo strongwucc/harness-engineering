@@ -3,7 +3,7 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.19
+**版本**: v1.20
 **更新日期**: 2026-10-30
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
@@ -288,7 +288,7 @@ Agent 开始工作前就将其引向正确方向。
 ### D5：安全防护
 
 > 来源：Simon Willison（致命三要素）+ Meta AI（二选一规则）+ [Trustworthy agents in practice](https://www.anthropic.com/research/trustworthy-agents)（Anthropic，2026.04）
-> 原则：处理不可信输入 + 访问敏感数据 + 修改状态 = 安全事故不可避免。最多同时拥有两个。Agent 行为是 model/harness/tools/environment 四层组件的乘积——好模型也会被配置不当的 harness、过度放权的工具或暴露的环境攻破。
+> 原则：处理不可信输入 + 访问敏感数据 + 具备对外通信能力 = 攻击者可通过提示注入轻易诱导数据外传。最多同时拥有两个。Agent 行为是 model/harness/tools/environment 四层组件的乘积——好模型也会被配置不当的 harness、过度放权的工具或暴露的环境攻破。
 
 #### D5.1 致命三要素识别
 
@@ -296,7 +296,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 项目是否识别了三要素的暴露面
   - 不可信输入（用户输入、外部 API 响应、文件上传）
   - 敏感数据（数据库、密钥、用户隐私）
-  - 状态修改（写文件、发请求、数据库写入）
+  - 对外通信/外传路径（发邮件、HTTP/API 请求、创建公开 PR/issue、可点击链接——注意：不改本地状态的工具同样构成外传通道）
 - [ ] 对同时满足三要素的场景有防护措施
 
 #### D5.2 二选一规则执行
@@ -493,7 +493,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### 反模式 6：全权限 Agent
 
-Agent 拥有完整的文件系统访问和命令执行权限，无任何操作需要审批。同时满足致命三要素。
+Agent 拥有完整的文件系统访问和命令执行权限，无任何操作需要审批。同时具备致命三要素的全部三项（不可信输入暴露 + 敏感数据访问 + 对外通信能力）。
 
 ### 反模式 7：Harness 过度绑定模型版本
 
@@ -638,3 +638,4 @@ Level X（一句话总结）
 | 2026-09-23 | v1.17 | 补 7 个权威来源（共 83 个），主题"自进化再评估 + 编排范式"：Rethinking Harness Evolution（预算对齐基线 + held-out 泛化双重协议，Terminal-Bench 2.1 负面结果）、Bad Genius（协议层作弊与反事实引导）、ModularRSI、HarnessDev、Externalization in LLM Agents（5 篇学术论文）；OpenAI Symphony（harness engineering 官方下一步：管理 work 而非 agents，SPEC.md 优先，26.9k stars）、Faros Harness Guide（211 任务开放模型均等器 + session-to-PR 度量，2 篇行业文章）。D4 新增自进化增益公平归因检查项、D6 新增评估协议防基准作弊 + session-to-PR 关联度量两项检查项；新增反模式 15（自进化自证循环）。article 新增 §3.5 再评估危机段、§3.6 Symphony 小节、§5.20 Faros 案例、§6.19 session-to-PR 度量、§2.3 补 Externalization、§12 补三层防作弊协议；implementation-guide 同步度量与公平评估（含指南同步） |
 | 2026-10-22 | v1.18 | 补 4 个权威来源（共 86 个），主题"实证定论 + 安全四层 + 领域普查"：Anatomy of Coding Agents（Barbaste，83 页——11 生产 harness + Omnigent 源码解剖，400 万行零框架导入零向量检索，SKILL.md 超 MCP，行为策略 prompt 散文→配置，"工具到平台"定论）、Trustworthy agents in practice（Anthropic——model/harness/tools/environment 四层组件模型 + Plan Mode 策略层监督 + prompt injection 多层防御）、State of AI Harness Engineering 2026（Marmelab——246 仓库普查：60% harness 无 test/eval、25% AI 签名、负结果集 reviewer -8pp/>4 交接失败/预写规则少拦 20.1pp、Vercel 砍工具正结果）、Model Hardware Standard（Anthropic——具身 Harness 标准协议层，Physical AI 运行时 + HARBOR 研发时之外的第三端口）。D5 新增四层组件纵深防御检查项并扩 5 星、D6 新增 harness 自身双向 guard 测试 + control expiry condition 两项检查项并扩 5 星、D5/D6/D9 来源行补充；反模式 1（软硬失衡）补 Marmelab 4.4% 量化证据。article 新增 §5.21 Marmelab 普查案例、§7.6 多层防御、§12 源码解剖定论小节、§12 具身 Harness 补 MHS 段（含指南同步） |
 | 2026-10-30 | v1.19 | 补 5 个权威来源（共 91 个），主题"Karpathy 话语体系接入"：Sequoia Ascent 2026（agentic engineering 大众化命名，职责清单与 harness 工程逐项重合 + agent-native sensors/actuators + 2025-12 agentic 拐点一手观察）、2025 LLM Year in Review（Claude Code "顺序优先级"：localhost 赢在已启动电脑/context/data/secrets/低延迟而非算力位置；LLM 应用层四职责 context engineering 居首）、Verifiability（可指定/可验证框架 + resettable/efficient/rewardable 三条件）、Animals vs. Ghosts 与 The space of minds（jagged intelligence 理论底座）。D6 来源行补 Verifiability 并新增"验证环境可练习三条件"检查项；新增反模式 16（人类优先接口）。article §3.2 补 Karpathy 术语源与 Cursor 四职责、§3.3 补 agentic engineering 命名段、新增 §5.22 Karpathy 案例、§9 错误五扩 agent-native 清单、参考资源 +5（无 PRACTICE 级新组件，指南不同步） |
+| 2026-10-30 | v1.20 | 外部审查修复轮（Codex 全库分析，5 个 P0 硬错误逐项对照原始来源核实后修正）：① 致命三要素第三项由"能修改状态"更正为"具备对外通信能力"（对照 Willison 原文——旧表述会漏掉纯外传攻击路径；article §7.1/§7.2、D5 原则行与 D5.1 检查项、guide §10、反模式 6 同步）；② guide §7 Hook 阻断说明更正为双路径（exit 2 是官方 Blocking error，与 exit 0+JSON deny 等效，修正正文与附录 A 的矛盾）；③ guide §7 "每次必中"限定为"匹配到即确定性拦截"并注明示例正则是演示非防线；④ guide §9 失败案例改入回归集、与 holdout 隔离（修复同节自相矛盾）；⑤ README 数据同步（22 案例/v1.19→v1.20 时点/91 来源/16 反模式）。另修 article §5.21 引用号（6.11→6.13）、§5.17 引用指向（→5.11）、§六/§八标题数字失实。P1/P2 结构性建议（D 维度五星分层、评分协议、校准案例）留待专项处理 |

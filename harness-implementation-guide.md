@@ -276,15 +276,15 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 # 阻断删根、强制推送生产、改 migration
 if echo "$CMD" | grep -qE 'rm -rf /|git push.*prod|artisan migrate'; then
   jq -n '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:"危险操作被 Harness 拦截，需人类确认"}}'
-  exit 0   # 退出码 0 + JSON 才生效；不能用 exit 2（那是错误，不是决策）
+  exit 0   # 结构化决策路径：exit 0 + JSON（另一条等效阻断路径是 exit 2，见下方"坑"）
 fi
 exit 0
 ```
 
-这就是"**你无法用提示词实现合规**"的落地——PII 脱敏、危险命令拦截、"每次都必须触发"的策略，全部活在 hook 里，用代码保证每次必中，不托付给模型的概率判断。
+这就是"**你无法用提示词实现合规**"的落地——PII 脱敏、危险命令拦截、"每次都必须触发"的策略，全部活在 hook 里：**匹配到即确定性拦截**（与提示词的概率性约束相对），不托付给模型的判断。注意边界：上面的示例正则只覆盖三种字面命令，是演示不是完整防线——`rm -rf ~`、编码执行、别名等变体不在匹配范围内；生产防线靠最小权限 + 隔离 + 双向测试（该拦的拦住、该放的放行）共同构成。
 
 **坑**：
-- 想阻断工具必须返回 `permissionDecision: "deny"`（退出码 0 + JSON），**不要用 exit 2**（exit 2 是"hook 出错"，不是"我决定拒绝"）
+- 阻断工具有**两条等效路径**：① exit 0 + JSON 的 `permissionDecision: "deny"`（可携带用户可见理由，推荐）；② **exit 2 = Blocking error**——在 PreToolUse 等可阻断事件上官方定义就是"停止该操作"，stderr 会反馈给 Claude。两者都有效；早期版本只有 exit 2，JSON 决策是后加的结构化路径
 - `async: true` 的 hook **无法控制流**（决策字段被忽略）——要拦截就别开 async
 - matcher 是**工具名**（如 `"Bash"`），不是命令内容；命令内容的判断在脚本里做
 - JSON stdout 必须是**唯一输出**，别混 `echo` 调试信息
@@ -364,7 +364,7 @@ AI 写得越多，代码库和 Harness 都会乱：命名分化、文档脱节�
 
 熵管理的燃料是失败案例，但**光存 trace 不构成学习闭环**——trace 告诉你发生了什么，不告诉你对不对。做法：
 
-- 每个失败 case 不止修掉，还固化成一条**回归 eval**（可跑、可重放），进 holdout 集
+- 每个失败 case 不止修掉，还固化成一条**回归 eval**（可跑、可重放），进**回归集**——注意与最终保留集分开：失败案例已用于驱动修复，不再是独立证据；holdout 须独立、少量访问，反复用于选择改动后应视为已泄漏并轮换
 - 把「用户拒绝/要求重做/保留 diff」这类行为信号记录到对应任务上（反馈挂在轨迹上，非独立表格），才能按成败过滤、挑出值得变 eval 的失败
 - 已知失败模式优先写成**确定性检查**（hooks/lint/规则），别用模型调用——便宜信号够用就别用贵的
 
@@ -392,7 +392,7 @@ Claude Code 场景的落地把"关联"做轻：session id 写进 PR 描述或 co
 
 ### 10. 安全纵深
 
-Simon Willison 的框架很好记：**Agent 最多同时拥有下面三样里的两个**——① 处理不可信输入（外部网页、用户上传）② 访问敏感系统（数据库、密钥、用户隐私）③ 能改状态（删文件、发请求、扣款）。三个都要 → 强制人类审批。
+Simon Willison 的框架很好记：**Agent 最多同时拥有下面三样里的两个**——① 处理不可信输入（外部网页、用户上传）② 访问敏感数据（数据库、密钥、用户隐私）③ 具备对外通信能力（发邮件、发起 HTTP/API 请求、创建公开 PR——攻击面是攻击者可借此外传数据）。三个都要 → 强制人类审批。
 
 落地（全是 §5 和 §7 的机制）：
 - **Permissions deny/ask**：`.env`、secrets/、生产 migration、`rm -rf` 全进 deny；`git push`、装依赖进 ask
