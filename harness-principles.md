@@ -3,11 +3,17 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.20
+**版本**: v1.21
 **更新日期**: 2026-10-30
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
+
+## 结构导航
+
+> 本文件阅读顺序：**权威来源表**（证据底座，可跳过先看框架）→ **评估维度 D1-D9**（每维度含来源/原则/检查项/星级标准）→ **评分体系**（星级含义 + 成熟度等级 + 评分协议）→ **常见反模式 1-16** → **评估输出模板** → **更新日志**。
+>
+> 只想评估项目：直接跳 D1-D9 逐项打勾，再按评分协议汇总；只想了解反模式排查：跳反模式章节；跨文件找主题：见 README 文件导航。
 
 ## 权威来源
 
@@ -90,7 +96,7 @@
 | [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning) | LangChain（2026.05） | trace 必要不充分，反馈附着轨迹存储才能构成学习闭环；四类反馈源；model/harness/context 三层失败归因 |
 | [Improving Agents is a Data Mining Problem](https://www.langchain.com/blog/improving-agents-is-a-data-mining-problem) | LangChain（2026.07） | HE→FT→HE 三明治策略：harness 工程优先（快反馈高带宽），撞智能天花板再微调，微调后回 harness 验证泛化；TB 2.0 纯 harness 爬山 +13.7% |
 | [3 Years of Graph Engineering with LangGraph](https://www.langchain.com/blog/3-years-of-graph-engineering-with-langgraph) | LangChain（2026.07） | graph vs agentic 循环决策边界：结构可预知用图、开放探索用核心循环、图节点可为完整 agent run；生产 Agent 图非 DAG，循环是核心 |
-| [Rethinking the Evaluation of Harness Evolution for Agents](https://arxiv.org/abs/2607.12227) | UW 等多机构（2026.07，v2 2026.08） | 自进化 harness 再评估：须与预算对齐的 test-time scaling 基线比较 + held-out 泛化验证；Terminal-Bench 2.1 上自动 harness 进化不稳定优于简单搜索且泛化有限——自进化可信度取决于评估协议严格度 |
+| [Rethinking the Evaluation of Harness Evolution for Agents](https://arxiv.org/abs/2607.12227) | UW 等多机构（2026.07，v4 2026.10） | 自进化 harness 再评估：须与预算对齐的 test-time scaling 基线比较 + held-out 泛化验证；Terminal-Bench 2.1 上自动 harness 进化不稳定优于简单搜索且泛化有限；**v4 补正结果边界**：长时程游戏是自进化利好区（难度留空间 + 依赖 OOD 适应 + 天然细粒度反馈），ARC-AGI-3 +80% / EdgeBench +11%——自进化的适用性取决于场景结构，非一刀切失败 |
 | [Bad Genius: Counterfactual-Guided Harness Evolution](https://arxiv.org/abs/2609.18366) | Zhu et al.（2026.09） | task holdout 只换语义任务不换基准协议，"作弊 harness"仍可通过协议捷径得分；反事实引导 + 预注册 fresh-world 确认对抗捷径 |
 | [ModularRSI: Modular and Generalizable Recursive Harness Self-Improvement](https://arxiv.org/abs/2609.14857) | Wu, Ren et al.（2026.09） | 递归自改进（RSI）模块化、通用化扩展到 agent harness，正面回应自进化泛化质疑 |
 | [HarnessDev: Can LLMs Create and Evolve Their Own Agent Harness?](https://arxiv.org/abs/2609.01437) | Wu et al.（2026.09） | 把"创建和进化自己的 harness"本身作为评估对象——harness 从改进工具升格为被评估的能力 |
@@ -166,6 +172,8 @@ Agent 开始工作前就将其引向正确方向。
 - 3 星：有自定义 Agent 但角色定义笼统
 - 5 星：每个 Agent 有精确的角色、工具限制、输出格式、示例
 
+> **必备/按需分层**：必备 = 检查清单 + 交叉验证；按需高级 = 多 Agent 审查——多 Agent 不是五星硬条件，人工审查或单 Agent + 独立验证为等价证据（Marmelab 实测加 reviewer agent 反而 -8pp，多 Agent 须有证据其增益为正）
+
 #### D1.4 非确定性反馈（推断型审查）
 
 捕获"能编译但语义错误"的代码。
@@ -226,6 +234,8 @@ Agent 开始工作前就将其引向正确方向。
 - 3 星：有 CLAUDE.md 但缺少 Select/Compress/Isolate 策略
 - 5 星：四策略全覆盖 + 项目级文档分层 + 记忆系统 + KV-cache 优化
 
+> **必备/按需分层**：必备 = 四策略按任务适用（短程单轮任务用不到 Compress/Isolate 属正常）；按需高级 = 记忆系统、KV-cache 优化（高频/长程/多会话任务才适用）。评估实际上下文质量与成本，而非要求每个项目具备同一实现——不适用标记 N/A，不按缺失扣星
+
 ---
 
 ### D3：架构约束
@@ -282,6 +292,8 @@ Agent 开始工作前就将其引向正确方向。
 - 1 星：无任何熵管理意识
 - 3 星：意识到问题但无自动化机制
 - 5 星：有定期清理 Agent、文档一致性检查、模型更新审查流程、Harness 有效性量化追踪、组件级贡献归因、Harness 自愈闭环、改进策略分层
+
+> **必备/按需分层**：必备 = 定期复核、回滚能力、可观测（基础维护三件套）；按需高级 = 自愈闭环、组件级贡献归因、改进策略分层（研究型投入，在 harness 数量大到人工维护不动时才有正收益，非基础维护必选）
 
 ---
 
@@ -372,6 +384,8 @@ Agent 开始工作前就将其引向正确方向。
 - 3 星：有 CI 但覆盖不全或部署仍手动
 - 5 星：CI 全覆盖（Lint + 类型 + 测试 + 安全扫描）+ 自动化部署
 
+> **必备/按需分层**：必备 = CI 全覆盖 + 可复现验证 + 适用的发布审批与回滚；按需高级 = 自动化部署——不部署的软件（库/CLI）或高风险人工发布场景，人工审批是正当形态而非缺失，标 N/A 或按"审批 + 回滚"证据评分
+
 ---
 
 ### D8：Agent 工作流编排
@@ -404,6 +418,8 @@ Agent 开始工作前就将其引向正确方向。
 - 1 星：无工作流，Agent 自由发挥
 - 3 星：有基本流程但缺少验证/恢复环节，无自动化调度
 - 5 星：完整工作流 + 验证 + 恢复 + 工具精简 + 多 Agent 协作 + 自动化调度 + 跨会话状态 + 目标驱动 + 高频任务确定性回放 + 模型专属配置 + 可组合中间件 + agent 自补缺失工具 + 编排形态按可预知度选择
+
+> **必备/按需分层**：必备 = 完整工作流 + 验证 + 恢复 + 工具精简；其余全部按需高级——按任务可预知度与规模选择（结构可预知才上图/调度，高频重复才上回放，多模型才上 profile）。能力越多权限面越大，与"做更少"哲学（Vercel 砍 80% 工具、Bitter Lesson 心法）互相平衡；自补工具（self-heal）是受控高级选项，非默认追求
 
 ---
 
@@ -440,6 +456,8 @@ Agent 开始工作前就将其引向正确方向。
 - 3 星：有基本 Harness 文档但缺少方差分解和可迁移性验证
 - 5 星：Harness 规格完整可复现 + 模型/Harness 方差可独立测量 + 跨模型迁移验证 + 可剥离性设计
 
+> **必备/按需分层**：必备 = 版本、环境、输入、验证结果与限制可记录（复现底线）；按需高级 = 方差独立测量、跨模型迁移验证——单模型项目标 N/A；可剥离性设计对长生命周期项目必备、短期项目按需
+
 ---
 
 ## 评分体系
@@ -458,9 +476,19 @@ Agent 开始工作前就将其引向正确方向。
 
 | 总体评级 | 条件 | 类比 |
 |----------|------|------|
-| Level 1：个人基础 | 大部分维度 2-3 星 | 有马具但缺缰绳 |
-| Level 2：团队级 | 大部分维度 3-4 星 | 骑手可以安全骑行 |
-| Level 3：生产级 | 大部分维度 4-5 星 | 赛马级装备，可控且快速 |
+| Level 1：个人基础 | 各维度星级中位数 ≤ 3 | 有马具但缺缰绳 |
+| Level 2：团队级 | 各维度星级中位数 3-4 | 骑手可以安全骑行 |
+| Level 3：生产级 | 各维度星级中位数 ≥ 4 | 赛马级装备，可控且快速 |
+
+### 评分协议
+
+**N/A（不适用）**：维度对项目形态不适用时（如不部署的库 → D7 部分项、单模型项目 → 跨模型迁移项），标记 N/A 并注明理由，**不计入中位数分母**。N/A 须谨慎使用——"没做"不等于"不适用"，只有结构性不适用才可标。
+
+**未知（证据不足）**：无法取得证据时标"未知"，按 1 星保守计入并在报告中注明——防止"存在配置文件"被当作"运行时生效"。
+
+**安全红线（覆盖平均）**：D5 安全防护为 1 星、或命中反模式 6（全权限 Agent）且无任何缓解时，**总体评级强制不高于 Level 1**，无论其他维度多高——严重安全缺口不可被高分平均掩盖。
+
+**证据状态标注**：每个维度结论附三态之一——`已验证`（有文件/运行证据 + 观察日期）/ `仅声明`（只有文档说明，未见运行证据）/ `未验证`（评估者推断）。跨维度重复计分处理：同一证据可关联多个维度（如 CI 同时关联 D1/D3/D7），但各维度分别评"执行机制/生命周期/可复现性"各自侧面，报告须注明主归属，避免同一事实被三次当作独立优势。
 
 ---
 
@@ -614,6 +642,48 @@ Level X（一句话总结）
 
 ---
 
+## 评分校准示例
+
+三个虚构示例项目（**示例，非真实**），用于校准评估尺度——重点演示 N/A、证据状态与安全红线的用法，而非示范"满分答案"。
+
+### 示例 A：个人只读研究 Agent
+
+场景：本地文献问答，工具只读、无部署、无对外通信。
+
+| 维度 | 评分 | 关键理由 |
+|------|------|----------|
+| D5 | 4 星 | 只读 + 无对外通信通道，三要素天然缺二；但"工具只读"须有运行证据（hooks 限制 + 权限白名单实测），仅口头声明记"仅声明" |
+| D7 | N/A | 不部署的本地工具，部署审批项结构性不适用 |
+| D8 | 2 星 | 单轮问答无编排需求——按需低分正常，非缺陷 |
+
+总评 **Level 1-2**：与风险形态匹配。要点：此类项目的价值集中在 D1（指南质量）与 D5（权限边界），不追求全维度拉满。
+
+### 示例 B：小团队编码 Agent
+
+场景：Claude Code + CLAUDE.md + 危险命令 hooks + CI，5 人团队。
+
+| 维度 | 评分 | 关键理由 |
+|------|------|----------|
+| D1 | 3 星 | 有多层指南但无交叉验证机制 |
+| D5 | 3 星 | hooks 拦截已有（已验证），但无 Policy as Code、无环境区分 |
+| D6 | 3 星 | 测试有覆盖，harness 自身无 eval |
+| D7 | 4 星 | CI 全覆盖——**注意**：此证据同时关联 D1/D3/D7，报告注明主归属 D7，D1/D3 各评自己侧面 |
+
+总评 **Level 2**。典型陷阱：CI 一项事实被三个维度重复计分——按评分协议写明主归属，避免虚高。
+
+### 示例 C：生产级支付对账 Agent
+
+场景：写数据库 + 发付款通知 + 处理外部商户单据——**致命三要素三项齐备**。
+
+| 维度 | 评分 | 关键理由 |
+|------|------|----------|
+| D5 | 2 星 → 触发红线 | 若仅靠提示词约束 + 全权限工具：无论其他维度多少星，**总评强制 Level 1** |
+| D5 | 4 星 → 解除红线 | Policy as Code + 对外通信人工审批 + 双向 guard 测试后，才允许评 Level 2+ |
+
+总评**取决于 D5**。要点：这就是"安全红线覆盖平均"的含义——示例 C 的 D1/D6 可以全是 5 星，红线期间总评依然是 Level 1；三要素齐备的项目，安全维度是总评的先决条件而非九分之一。
+
+---
+
 ## 更新日志
 
 | 日期 | 版本 | 变更内容 |
@@ -639,3 +709,4 @@ Level X（一句话总结）
 | 2026-10-22 | v1.18 | 补 4 个权威来源（共 86 个），主题"实证定论 + 安全四层 + 领域普查"：Anatomy of Coding Agents（Barbaste，83 页——11 生产 harness + Omnigent 源码解剖，400 万行零框架导入零向量检索，SKILL.md 超 MCP，行为策略 prompt 散文→配置，"工具到平台"定论）、Trustworthy agents in practice（Anthropic——model/harness/tools/environment 四层组件模型 + Plan Mode 策略层监督 + prompt injection 多层防御）、State of AI Harness Engineering 2026（Marmelab——246 仓库普查：60% harness 无 test/eval、25% AI 签名、负结果集 reviewer -8pp/>4 交接失败/预写规则少拦 20.1pp、Vercel 砍工具正结果）、Model Hardware Standard（Anthropic——具身 Harness 标准协议层，Physical AI 运行时 + HARBOR 研发时之外的第三端口）。D5 新增四层组件纵深防御检查项并扩 5 星、D6 新增 harness 自身双向 guard 测试 + control expiry condition 两项检查项并扩 5 星、D5/D6/D9 来源行补充；反模式 1（软硬失衡）补 Marmelab 4.4% 量化证据。article 新增 §5.21 Marmelab 普查案例、§7.6 多层防御、§12 源码解剖定论小节、§12 具身 Harness 补 MHS 段（含指南同步） |
 | 2026-10-30 | v1.19 | 补 5 个权威来源（共 91 个），主题"Karpathy 话语体系接入"：Sequoia Ascent 2026（agentic engineering 大众化命名，职责清单与 harness 工程逐项重合 + agent-native sensors/actuators + 2025-12 agentic 拐点一手观察）、2025 LLM Year in Review（Claude Code "顺序优先级"：localhost 赢在已启动电脑/context/data/secrets/低延迟而非算力位置；LLM 应用层四职责 context engineering 居首）、Verifiability（可指定/可验证框架 + resettable/efficient/rewardable 三条件）、Animals vs. Ghosts 与 The space of minds（jagged intelligence 理论底座）。D6 来源行补 Verifiability 并新增"验证环境可练习三条件"检查项；新增反模式 16（人类优先接口）。article §3.2 补 Karpathy 术语源与 Cursor 四职责、§3.3 补 agentic engineering 命名段、新增 §5.22 Karpathy 案例、§9 错误五扩 agent-native 清单、参考资源 +5（无 PRACTICE 级新组件，指南不同步） |
 | 2026-10-30 | v1.20 | 外部审查修复轮（Codex 全库分析，5 个 P0 硬错误逐项对照原始来源核实后修正）：① 致命三要素第三项由"能修改状态"更正为"具备对外通信能力"（对照 Willison 原文——旧表述会漏掉纯外传攻击路径；article §7.1/§7.2、D5 原则行与 D5.1 检查项、guide §10、反模式 6 同步）；② guide §7 Hook 阻断说明更正为双路径（exit 2 是官方 Blocking error，与 exit 0+JSON deny 等效，修正正文与附录 A 的矛盾）；③ guide §7 "每次必中"限定为"匹配到即确定性拦截"并注明示例正则是演示非防线；④ guide §9 失败案例改入回归集、与 holdout 隔离（修复同节自相矛盾）；⑤ README 数据同步（22 案例/v1.19→v1.20 时点/91 来源/16 反模式）。另修 article §5.21 引用号（6.11→6.13）、§5.17 引用指向（→5.11）、§六/§八标题数字失实。P1/P2 结构性建议（D 维度五星分层、评分协议、校准案例）留待专项处理 |
+| 2026-10-30 | v1.21 | Codex 审查 P1 结构性改进轮：① D1/D2/D4/D7/D8/D9 六维五星标准增"必备/按需高级"分层注记（修复"研究能力全集化"——多 Agent 审查/记忆系统/自愈闭环/自动部署/回放/跨模型验证等改为按需高级并注明适用条件，Marmelab reviewer -8pp 为多 Agent 非硬条件的证据）；② 新增评分协议（N/A 不计中位数分母、未知按 1 星保守计入、安全红线：D5 1 星或反模式 6 无缓解时总评强制 Level 1、证据三态标注、跨维度重复计分注明主归属）；③ 新增评分校准示例三个（个人只读研究 Agent/小团队编码 Agent/生产支付对账 Agent——演示 N/A、计分陷阱与安全红线覆盖平均）；④ Rethinking 补 v4（2026.10）正结果边界：长时程游戏为自进化利好区（ARC-AGI-3 +80%/EdgeBench +11%），article §3.5/§12/参考资源、principles 来源表、guide §9 五处同步；⑤ article §12 源码解剖结论限定样本范围（11 系统实证 ≠ 全领域定律）；⑥ principles 增结构导航、README 增术语对照表 |

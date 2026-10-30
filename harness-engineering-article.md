@@ -171,6 +171,8 @@ Harness 工程正在从一门"手工工艺"变成一门"自动科学"。
 
 7 月，华盛顿大学等机构的《Rethinking the Evaluation of Harness Evolution for Agents》（Hajishirzi / Tsvetkov 组）对上述工作提出两条方法论质疑：**其一，harness 进化本身就是迭代搜索**——反复评估、修订候选配置，与 agentic test-time scaling 本质同源，因此必须在**对齐反馈与推理预算**的条件下与简单的任务级搜索基线对比，才能区分收益来自"更好的 harness 设计"还是"单纯的更多搜索"；**其二，搜索与最终评估共用同一个公开基准**，报告的增益有过拟合到该任务集的风险。在 Terminal-Bench 2.1 上对 GPT-5.4 与 Claude Opus 4.6 的对照实验结论泼了冷水：**自动 harness 进化并不稳定地优于简单 test-time scaling，且向 held-out 任务的泛化有限**。
 
+论文 v4 版（2026.10）随后补出了正结果边界：**长时程游戏是自动 harness 进化的利好场景**——任务足够难、留有提升空间，依赖对 OOD 动态的适应，且天然提供细粒度反馈。预算对齐条件下，任务专属 harness 进化在 ARC-AGI-3 上超过搜索基线 **80%**、EdgeBench 游戏上 **11%**。结论由此从"自进化收益存疑"修正为更精确的"**自进化的适用性取决于场景结构**"。
+
 9 月，《Bad Genius: Counterfactual-Guided Harness Evolution Beyond Task-Specific Shortcuts》进一步指出作弊的藏身处：常用的 task holdout 只变换语义任务、却保持基准协议不变，一个"天才作弊者"式的 Proposer 仍能产出**靠协议捷径而非真实能力**得分的 harness——对策是反事实引导加预注册的 fresh-world 确认（论文名致敬电影《天才枪手》）。同期出现两条建设性路线：**ModularRSI** 把递归自改进（RSI）以模块化、可泛化的方式扩展到 agent harness，正面回应泛化质疑；**HarnessDev** 则干脆把"能否创建和进化自己的 harness"本身变成被评估的能力——harness 从改进工具升格为评估对象。
 
 这场再评估的校正意义在于：Gated QD 的"确定性记功 + sealed test"恰好是 Rethinking 所呼吁的公平协议的先行实现——**自进化 harness 的可信度不取决于进化算法多聪明，而取决于评估协议多严格**：预算对齐的基线、held-out 泛化、协议层的反作弊确认，缺一不可。
@@ -1094,7 +1096,7 @@ Philipp Schmid（前 Google DeepMind）点出了基准的根本盲区：**静态
 
 2026 年 5 月，《AI Harness Engineering: A Runtime Substrate》把"可评估性"再往前推了一步——提出 **trace-based 评估协议**：把每一次 Agent 运行转成一个可审计的 **episode package**，里面不只是最终补丁，而是包含复现日志、失败归因、确定性需求检查和结构化验证报告。关键在于，这个 episode package 的"证据结构"随 harness 等级（H0–H3，见 4.4）系统化变化——低等级 harness 只能产出"一个补丁"，高等级 harness 能产出"为什么这个补丁是对的"的完整证据链。这把评估工程从"给结果打分"推进到了"让过程可审计"——而后者正是生产级 Agent 区别于 Demo 的本质（4.4 的六元组完整性结论也印证了这一点：能进生产的系统都补齐了评估接口 V 这一格）。
 
-下半年，评估工程把矛头转向了"自评估"本身。《Rethinking the Evaluation of Harness Evolution》证明：不与预算对齐的搜索基线比较、只在搜索所用的同一基准上报告成绩，harness 自进化的"增益"可能只是搜索预算与过拟合的混合物（详见 3.5 的再评估危机）。评估工程的最新前沿因此是**三层防作弊协议**：预算对齐基线、held-out 泛化、协议层反事实确认（Bad Genius）——评估一门"会自己改自己的系统"，比评估 Agent 本身又难了一个量级。
+下半年，评估工程把矛头转向了"自评估"本身。《Rethinking the Evaluation of Harness Evolution》证明：不与预算对齐的搜索基线比较、只在搜索所用的同一基准上报告成绩，harness 自进化的"增益"可能只是搜索预算与过拟合的混合物（详见 3.5 的再评估危机；v4 2026.10 补出正结果边界——长时程游戏场景 ARC-AGI-3 +80%/EdgeBench +11%，自进化在特定任务结构下有真实收益）。评估工程的最新前沿因此是**三层防作弊协议**：预算对齐基线、held-out 泛化、协议层反事实确认（Bad Genius）——评估一门"会自己改自己的系统"，比评估 Agent 本身又难了一个量级。
 
 ### 知识引擎（Knowledge Engines）
 
@@ -1170,7 +1172,7 @@ NLAH（Natural-Language Agent Harnesses）则从另一个角度切入：**Harnes
 - **没有任何一个 agent runtime 导入通用 agentic framework**；
 - **没有任何一个用向量嵌入检索代码**。
 
-整个领域运行在手写的 async loop 与确定性检索（grep 类）之上。这给 3.x 的范式迁移史和"Bitter Lesson"之争同时盖了章：**顶尖实践者用脚投票的答案，既不是"上框架"，也不是"上向量库"，而是把控制流握在自己手里**——与 Is Grep All You Need（PwC）的检索实证、browser-use 的极简主义心法完全互证。
+在该研究的样本范围内（11 个顶尖 coding harness，截至 2026 年中版本），全部系统运行在手写的 async loop 与确定性检索（grep 类）之上——这尚不能推广为全领域定律（样本偏向头部编码工具），但给 3.x 的范式迁移史和"Bitter Lesson"之争提供了迄今最重的实证证据：**顶尖实践者用脚投票的答案，既不是"上框架"，也不是"上向量库"，而是把控制流握在自己手里**——与 Is Grep All You Need（PwC）的检索实证、browser-use 的极简主义心法互证。
 
 另三条观察指向生态走向：**SKILL.md 技能的采用率（9/11）超过了 MCP（8/11）**——文件式过程性知识先于协议式工具集成成为标配；**ACP（Agent Client Protocol）已进入 6 个系统**，并催生了除"开发者/终端用户"之外的第三种角色——**harness hosting（托管别人的 harness）**；而因为研究对原始 8 个系统做的是**重新 pin 版本**而非换样本，它还附赠了一个受控纵向样本——同一批 harness 跨一个季度的源码 diff 显示：**趋同正在变成模仿，行为策略正从 prompt 散文迁移到配置文件**。
 
@@ -1262,7 +1264,7 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [The Path to Recursive Self-Improving Agents: Foundation, Framework, and Future Directions](https://www.preprints.org/manuscript/202608.0051)（Preprints，2026.08）——自改进 Agent 系统综述：五级分级标准（手动改进→通用递归自改进）+ 基础模型/Harness/数据系统/训练器/改进机制五组件耦合框架 + 组件内自改进与跨组件共改进 taxonomy
 - [SemaClaw: A Step Towards General-Purpose Personal AI Agents through Harness Engineering](https://arxiv.org/abs/2604.11548)（arXiv，2026.04）——个人 Agent（OpenClaw 场景）的 harness 工程落地：DAG 两阶段混合编排 + PermissionBridge 行为安全 + 三层上下文管理 + agentic wiki；"harness 层成为架构差异化主战场"的规模化实证
 - [Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering](https://arxiv.org/abs/2604.08224)（arXiv，2026.04）——把记忆、技能、协议、Harness 工程统一为"外化"主题的四种子学科，梳理执行轨迹在外置记忆与 Agent 之间的回流循环
-- [Rethinking the Evaluation of Harness Evolution for Agents](https://arxiv.org/abs/2607.12227)（arXiv，2026.07，v2 2026.08）——自进化 harness 的再评估：harness 进化须与预算对齐的 test-time scaling 基线比较 + held-out 泛化验证；Terminal-Bench 2.1 上自动 harness 进化不稳定优于简单搜索且泛化有限
+- [Rethinking the Evaluation of Harness Evolution for Agents](https://arxiv.org/abs/2607.12227)（arXiv，2026.07，v4 2026.10）——自进化 harness 的再评估：harness 进化须与预算对齐的 test-time scaling 基线比较 + held-out 泛化验证；Terminal-Bench 2.1 上自动 harness 进化不稳定优于简单搜索且泛化有限；v4 补正结果边界——长时程游戏为利好场景（ARC-AGI-3 +80%/EdgeBench +11%）
 - [HarnessDev: Can LLMs Create and Evolve Their Own Agent Harness?](https://arxiv.org/abs/2609.01437)（arXiv，2026.09）——把"创建和进化自己的 harness"本身作为评估对象，harness 从改进工具升格为被评估的能力
 - [ModularRSI: Modular and Generalizable Recursive Harness Self-Improvement](https://arxiv.org/abs/2609.14857)（arXiv，2026.09）——把递归自改进（RSI）以模块化、可泛化方式扩展到 agent harness，正面回应自进化泛化质疑
 - [Bad Genius: Counterfactual-Guided Harness Evolution Beyond Task-Specific Shortcuts](https://arxiv.org/abs/2609.18366)（arXiv，2026.09）——task holdout 只换语义任务不换基准协议，作弊 harness 仍可通过；反事实引导 + 预注册 fresh-world 确认对抗协议捷径
