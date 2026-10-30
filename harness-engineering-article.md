@@ -89,6 +89,8 @@ Andrew Ng 的关键发现至今仍有指导意义：**用 Agentic 工作流包�
 
 核心问题从"**我该说什么**"变成了"**我该提供什么信息**"。
 
+术语的另一个源头更早：Andrej Karpathy 在 2025 年上半年就提出"提示词工程是错误的名称，上下文工程才是——为任务把上下文窗口填入正确信息的精细艺术"。他在 YC 演讲与后续访谈中给出了更系统的定位：**上下文窗口是"你对解释器的杠杆"，LLM 就是解释这份上下文的解释器**——编程对象从代码变成了 context（prompt、工具、示例、记忆、指令）。在其 2025 年度回顾中，他把"做上下文工程"列为 Cursor 类 LLM 应用层的四大职责之首，其余三项是编排多 LLM 调用 DAG、人机回路 GUI、自主度滑杆。
+
 Anthropic 将上下文策划分为四大策略：
 
 | 策略 | 做什么 | 类比 |
@@ -119,6 +121,8 @@ Manus 团队重写了四次 Agent 框架后得出结论：**KV-cache 命中率�
 不是修复提示词，而是改变 Agent 周围的系统——规则、工具、约束、反馈循环。Harness 工程一词由此诞生。
 
 接下来两周内，OpenAI、Martin Fowler、Wharton 教授 Ethan Mollick **独立发表**了相同的结论。没有事先协调——所有人都撞到了同一面墙。科学史称之为"多重发现"（multiple discovery）——这个想法的时代到了。
+
+同一时期，Karpathy 在 Sequoia Ascent 2026 对谈中为这门学科给出了大众化的命名——**agentic engineering**。他区分了两个概念：vibe coding 抬高地板（让任何人都能靠描述写软件），agentic engineering 抬高天花板（在 Agent 能力仍然"参差"（jagged）的前提下保住专业质量底线）。他列出的 agentic engineer 职责——设计 spec、监督计划、审查 diff、写测试、建 eval 回路、管理权限、隔离 worktree——与本章 harness 工程的实践清单几乎逐项重合。命名不同，严谨搬去的却是同一个地方。
 
 ### 3.4 前沿：自然语言 Agent Harness（NLAH，2026）
 
@@ -689,6 +693,18 @@ Faros（AI 工程效能平台）2026 年 5 月发布的《Harness Engineering: A
 
 这份普查与 6.11 的 ratchet、6.16 的熵管理形成了呼应：**harness 不是一次性的设计成果，而是一个需要测试、度量、除草的活系统**——而且它自己也在被 AI 写，腐化速度只会更快。
 
+### 5.22 Karpathy 视角：Claude Code 的"顺序优先级"与 2025-12 拐点
+
+Andrej Karpathy（OpenAI 创始成员、前 Tesla AI 总监）在《2025 LLM Year in Review》与 [Sequoia Ascent 2026 对谈](https://karpathy.bearblog.dev/sequoia-ascent-2026/)中，从重度使用者视角分析了 Claude Code 现象——harness 工程领域少有的"顶级从业者一手观察"。
+
+**2025 年 12 月是 agentic 拐点**。他的原话式描述：此前 Claude Code、Codex 类工具"能产出有用的代码块，但需要频繁纠正"；12 月起生成块显著变大、变连贯、变可靠——"我想不起上一次纠正它是什么时候"。编程的单位从敲代码行变成了委托宏动作（实现这个功能/重构这个子系统/写测试并修复失败），程序员的职业正在被重构为 **agent 的编排者**。
+
+**Claude Code 为什么赢**：他认为关键不在模型，而在**顺序优先级**——真正重要的不是 AI 跑在云还是本地，而是"已经启动并就绪的电脑、安装状态、上下文、数据、密钥、配置，以及低延迟交互"。OpenAI 早期把 codex 押在云端容器（从 ChatGPT 编排），Anthropic 押在 localhost——在能力参差的中速起飞世界，直接运行在开发者电脑上的 agent 天然拥有全部环境上下文。这是"harness 即环境"论点的独立佐证。
+
+**为什么 coding 走得最快**：其《[Verifiability](https://karpathy.bearblog.dev/verifiability/)》给出理论框架——Software 1.0 自动化"可指定"的任务，Software 2.0/LLM 自动化"可验证"的任务。可验证环境须满足三条件：**可重置**（能开新尝试）、**高效**（能大量尝试）、**可奖励**（有自动化过程给每次尝试打分）。coding 天然满足（测试过/挂、程序跑/崩），所以 agent 在此飞奔；不满足三条件的任务，需要人先补建验证环（如 LLM-as-judge 或确定性 rubric）。
+
+**人在回路管什么**：两个一手案例。MenuGen 项目中 agent 试图用 Stripe 邮箱匹配 Google 账号来发放积分——代码合理但系统设计错误（两个邮箱可以不同），人类必须坚持用持久 user ID 关联资金；反向，microGPT 项目里他反复要求 LLM 极简化代码，"模型做不到，像拔牙"——taste/简化没进 RL 电路，生成的代码"能跑但臃肿、复制粘贴、抽象尴尬"。结论：Agent 负责召回 API 细节（dim 还是 axis 已不必记），人类负责存储、视图、不变量、身份、安全边界与系统形状。
+
 ---
 
 ## 六、Harness 的六大核心组件
@@ -1004,6 +1020,8 @@ Harness 需要随模型一起进化。当新模型版本改进了推理能力，
 
 如果架构决策只存在于人们脑中或 Confluence 页面上（Agent 无法访问），Harness 就有缺口。**Agent 需要的一切都必须在仓库里。**
 
+Karpathy 把这个抱怨推到了基础设施层："为什么文档还在教我去哪个 URL、点哪个按钮？我要的是一段能直接贴给 agent 的文字。"他把未来产品形态抽象为**传感器与执行器**（sensors/actuators）——把世界的状态变成数字信息，让 Agent 能改变世界。清单：Markdown 文档、CLI、API、MCP server、结构化日志、机器可读 schema、可复制粘贴的 agent instructions、安全权限、可审计操作、headless 安装流程。评估一个产品的 agent-native 成熟度，就看它的每个能力是否都有"agent 可用版本"。
+
 ---
 
 ## 十、如何从零开始构建你的 Harness？
@@ -1293,4 +1311,9 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [The importance of Agent Harness in 2026](https://www.philschmid.de/agent-harness-2026)（Philipp Schmid，2026.01）——Harness 即操作系统的类比（Model=CPU / Context=RAM / Harness=OS / Agent=App）；context durability 作为新瓶颈（静态榜单测不出第 50 步后的漂移）；"Harness is the Dataset"——竞争优势从提示词转向 Harness 捕获的轨迹数据
 - [Agent Engineering in 2026: The Harness Is the Product](https://markdown.engineering/blog/2026-04-12-agent-engineering-2026)（Markdown Engineering / Noah Greenfield，2026.04）——"restart engineering"论断：2026 Agent 工程的核心是跨会话存续的 durable stack；veto durability（负面知识 / decisions.md）、replay safety（resume 不破坏现实）、显式 stop conditions；Georgiev 16→2 Agent 的生产案例
 - [Harness Engineering: A Guide to AI Coding Agents](https://www.faros.ai/blog/harness-engineering)（Faros，2026.05，更新 2026.07）——五层 harness（工具编排/验证环/上下文与记忆/护栏/可观测性）；211 真实任务实测：GLM-5.2/Kimi K2.6 + 优化 harness 匹配反超 Opus 4.8/GPT-5.5（开放模型均等器）；Anthropic 失败模式三命名（victory declaration bias / context anxiety / one-shotting overreach）；senior engineer tax；Stage 1-3 分阶段度量体系与 session-to-PR 关联方法论
+- [Sequoia Ascent 2026 summary](https://karpathy.bearblog.dev/sequoia-ascent-2026/)（Andrej Karpathy，2026.04）——agentic engineering 的大众化命名：vibe coding 抬地板 / agentic engineering 抬天花板，职责清单与 harness 工程逐项重合；2025-12 agentic 拐点一手观察；agent-native 基础设施（sensors/actuators + 可贴给 agent 的文档）；"context window 是对解释器的杠杆"
+- [2025 LLM Year in Review](https://karpathy.bearblog.dev/year-in-review-2025/)（Andrej Karpathy，2025.12）——六大范式转变（RLVR/Ghosts vs Animals/Cursor 应用层/Claude Code/vibe coding/nano banana）；Claude Code 专节："顺序优先级"分析——localhost 赢在已启动电脑/context/data/secrets/低延迟而非算力位置；Cursor 类 LLM 应用层四职责，context engineering 居首
+- [Verifiability](https://karpathy.bearblog.dev/verifiability/)（Andrej Karpathy，2025.11）——Software 1.0 自动化可指定、Software 2.0 自动化可验证；可验证环境三条件（resettable/efficient/rewardable）——解释 coding agent 为何进步最快、如何预判任务的自动化潜力
+- [Animals vs. Ghosts](https://karpathy.bearblog.dev/animals-vs-ghosts/)（Andrej Karpathy，2025）——LLM 是"召唤的幽灵"而非"进化的动物"：无生物驱动、由预训练与 RL 塑形的统计模拟，能力参差（jagged）是常态——人在回路与经验主义使用姿势的理论依据
+- [The space of minds](https://karpathy.bearblog.dev/the-space-of-minds/)（Andrej Karpathy，2025）——智能空间中 LLM 的定位：优化压力（商业进化 vs 生物进化）决定渐近线；"对这种新型智能实体建立准确内部模型的人，更能预测它的行为边界"
 - [The State Of AI Harness Engineering 2026](https://marmelab.com/blog/2026/09/24/the-state-of-ai-harness-engineering-2026.html)（François Zaninotto / Marmelab，2026.09）——246 仓库 + 145 大型非 AI 项目对照 + 57 篇文献的领域普查：同一模型换 8 个 harness 成功率 68%→88%；63% 项目有指令文件但 145 个项目合计仅 14 hooks/4 subagents；60% 的 harness 既无 test 也无 eval；25% harness 提交带 AI 签名；ETH Zurich 机器生成 context files 负增益 +20% 成本；481 个 CLAUDE.md 仅 4.4% 安全规则有真实 control 背书；负结果集（reviewer agent -8pp、Microsoft >4 次交接必失败、预写权限规则少拦 20.1pp）与正结果（Vercel 砍 80% 工具成功率 80%→100%）；五条方法论（双向 guard 测试、按失败反向构建、脚本替代散文规则、agent 跑真应用、expiry condition 记录）

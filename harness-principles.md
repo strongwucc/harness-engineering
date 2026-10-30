@@ -3,8 +3,8 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.18
-**更新日期**: 2026-10-22
+**版本**: v1.19
+**更新日期**: 2026-10-30
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
@@ -101,6 +101,11 @@
 | [Trustworthy agents in practice](https://www.anthropic.com/research/trustworthy-agents) | Anthropic（2026.04） | Agent 四层组件模型（model/harness/tools/environment）——"行为是四层乘积，好模型也会被坏 harness 攻破"；Plan Mode 把监督从单步审批上移到策略层；check-in 率可训练（复杂任务翻倍）；prompt injection 多层防御无单层银弹；MCP 捐赠 Linux Foundation |
 | [The State Of AI Harness Engineering 2026](https://marmelab.com/blog/2026/09/24/the-state-of-ai-harness-engineering-2026.html) | Marmelab（2026.09） | 246 仓库 + 145 对照 + 57 文献领域普查：同模型换 8 harness 成功率 68%→88%；63% 有指令文件但仅 14 hooks/4 subagents；60% harness 无 test/eval；25% harness 提交 AI 签名；负结果集（reviewer agent -8pp、>4 次交接必失败、预写规则少拦 20.1pp）；Vercel 砍 80% 工具成功率反升 |
 | [Previewing the Model Hardware Standard](https://www.anthropic.com/news/model-hardware-standard-research-preview) | Anthropic（2026.08） | 具身 Harness 的标准协议层：AI Agent 安全并行操作物理仪器（显微镜/液体处理器/机械臂），硬件集成从数周到小时级，实时调参 + 硬件错误自恢复——MCP 的工具标准化角色在物理世界重演 |
+| [Sequoia Ascent 2026 summary](https://karpathy.bearblog.dev/sequoia-ascent-2026/) | Andrej Karpathy（2026.04） | agentic engineering 大众化命名（vibe coding 抬地板 / agentic engineering 抬天花板），职责清单与 harness 工程逐项重合；agent-native 基础设施 sensors/actuators；2025-12 agentic 拐点一手观察 |
+| [2025 LLM Year in Review](https://karpathy.bearblog.dev/year-in-review-2025/) | Andrej Karpathy（2025.12） | Claude Code "顺序优先级"分析：localhost 赢在已启动电脑/context/data/secrets/低延迟而非算力位置；LLM 应用层四职责（context engineering 居首 + DAG 编排 + 人机 GUI + 自主度滑杆） |
+| [Verifiability](https://karpathy.bearblog.dev/verifiability/) | Andrej Karpathy（2025.11） | Software 1.0 自动化可指定、2.0 自动化可验证；可验证环境三条件 resettable/efficient/rewardable——任务自动化潜力预判框架 |
+| [Animals vs. Ghosts](https://karpathy.bearblog.dev/animals-vs-ghosts/) | Andrej Karpathy（2025） | LLM 是统计模拟的"幽灵"而非动物智能，能力 jagged 是常态——人在回路与经验主义使用姿势的理论依据 |
+| [The space of minds](https://karpathy.bearblog.dev/the-space-of-minds/) | Andrej Karpathy（2025） | 优化压力（商业进化 vs 生物进化）决定 LLM 智能渐近线；建立准确内部模型者更能预测其行为边界 |
 
 ---
 
@@ -323,7 +328,7 @@ Agent 开始工作前就将其引向正确方向。
 
 ### D6：测试与验证
 
-> 来源：Andrew Ng（Agentic 工作流）+ Anthropic（三 Agent 架构）+ [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning)（LangChain，2026.05）+ [Rethinking Harness Evolution](https://arxiv.org/abs/2607.12227)（2026.07）+ [Bad Genius](https://arxiv.org/abs/2609.18366)（2026.09）+ [Faros Harness Guide](https://www.faros.ai/blog/harness-engineering)（2026.05）+ [State of AI Harness Engineering](https://marmelab.com/blog/2026/09/24/the-state-of-ai-harness-engineering-2026.html)（Marmelab，2026.09）
+> 来源：Andrew Ng（Agentic 工作流）+ Anthropic（三 Agent 架构）+ [Agent Observability Needs Feedback](https://www.langchain.com/blog/agent-observability-needs-feedback-to-power-learning)（LangChain，2026.05）+ [Rethinking Harness Evolution](https://arxiv.org/abs/2607.12227)（2026.07）+ [Bad Genius](https://arxiv.org/abs/2609.18366)（2026.09）+ [Faros Harness Guide](https://www.faros.ai/blog/harness-engineering)（2026.05）+ [State of AI Harness Engineering](https://marmelab.com/blog/2026/09/24/the-state-of-ai-harness-engineering-2026.html)（Marmelab，2026.09）+ [Verifiability](https://karpathy.bearblog.dev/verifiability/)（Andrej Karpathy，2025.11）
 > 原则：用 Agentic 工作流包装 GPT-3.5 超过 GPT-4 零样本表现——好的测试套件让 Agent 更安全地工作。Harness 自身也需要被测试——普查显示 60% 的 harness 既无 test 也无 eval，"一堆 markdown 指令，没人知道是否成立"。
 
 **检查项**：
@@ -341,6 +346,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Agent 工作有 session-to-PR 关联度量（agent 会话连到产出的 PR 并标注意图，支撑 first-pass success、代码存活率、缺陷逃逸率——按现有数据分阶段起步，参考 Faros Stage 1-3）
 - [ ] Harness 自身有双向 guard 测试（每条规则/hook 各测"该拦的拦住"与"该放行的放行"两类用例——只测拦截会让收紧永远安全、放松不可见，harness 漂向拦死一切；参考 Marmelab："单侧 eval 制造单侧优化"，codex-claude-code-config 63 用例测 12 个 guard）
 - [ ] 每个 control 有 expiry condition 与背后事故记录（一行注明该 hook/规则为哪次失败而存在；模型升级或架构变更后可安全判断去留，避免死重累积——参考 Marmelab 腐化治理与 OpenAI doc-gardening agent）
+- [ ] 验证环境满足"可练习"三条件（resettable 可重开尝试 / efficient 可大量尝试 / rewardable 有自动打分——三条件不满足时先补评价机制如 LLM-as-judge 或确定性 rubric 再谈优化；任务可验证性直接决定其自动化潜力，参考 Karpathy Verifiability）
 
 **评估标准**：
 - 1 星：无测试基础设施
@@ -543,6 +549,12 @@ Agent 拥有完整的文件系统访问和命令执行权限，无任何操作�
 
 **正确做法**：自进化的每一笔"记功"过三道关：**预算对齐基线**（同等反馈与推理预算下的任务级搜索基线）、**held-out 泛化**（搜索基准之外的任务集）、**协议反作弊确认**（反事实引导 / 预注册 fresh-world）。Gated QD 的"确定性记功 + sealed test"是可参照的先行实现；评估一门会自己改自己的系统，评估协议必须比被评估对象更硬。
 
+### 反模式 16：人类优先接口（Human-Only Interfaces）
+
+基础设施与文档只对人友好：安装流程是"去这个 URL 点这个按钮"，文档没有 Agent 可消费的版本，服务无 CLI/API/结构化输出。Karpathy 的原话："为什么文档还在教我去哪个 URL、点哪个按钮？我要的是一段能直接贴给 agent 的文字。"当真实用户是"人类的 agent"时，纯人类接口等于把 agent 挡在门外——菜单点选式配置、截图式文档、必须走浏览器会话的操作流都在此列。
+
+**正确做法**：每个能力提供 agent-native 版本——Markdown 文档、CLI、API、MCP server、结构化日志、机器可读 schema、可复制粘贴的 agent instructions、headless 安装。Karpathy 的抽象是 sensors（把世界状态变成数字信息）与 actuators（让 Agent 能改变世界）：按"Agent 能否直接读取/操作"逐项审视产品与工作流，缺口即改造清单。（对应 article §9 错误五）
+
 ---
 
 ## 评估输出模板
@@ -625,3 +637,4 @@ Level X（一句话总结）
 | 2026-08-21 | v1.16 | 补 5 个权威来源（共 76 个）：Recursive Self-Improving Agents 综述（五级分级 + 五组件耦合框架）、SemaClaw 个人 Agent Harness（2 篇学术论文）；Agent Observability Needs Feedback、Improving Agents is a Data Mining Problem（HE→FT→HE 三明治）、3 Years of Graph Engineering（3 篇 LangChain）。D4 新增改进分层决策 + 自改进分级路线图两项检查项、D6 新增 trace 反馈关联存储 + 多类反馈源两项检查项、D8 新增编排形态按可预知度选择检查项；D4/D6/D8 来源行与五星标准同步扩展。article 新增 §3.7 Graph Engineering 决策边界、§5.19 SemaClaw、§6.17 可观测性与反馈闭环、§6.18 三明治策略，§3.5 补自改进综述、§12 补 harness 溶解论引用；implementation-guide §9 补"失败→eval 反馈闭环"（含指南同步） |
 | 2026-09-23 | v1.17 | 补 7 个权威来源（共 83 个），主题"自进化再评估 + 编排范式"：Rethinking Harness Evolution（预算对齐基线 + held-out 泛化双重协议，Terminal-Bench 2.1 负面结果）、Bad Genius（协议层作弊与反事实引导）、ModularRSI、HarnessDev、Externalization in LLM Agents（5 篇学术论文）；OpenAI Symphony（harness engineering 官方下一步：管理 work 而非 agents，SPEC.md 优先，26.9k stars）、Faros Harness Guide（211 任务开放模型均等器 + session-to-PR 度量，2 篇行业文章）。D4 新增自进化增益公平归因检查项、D6 新增评估协议防基准作弊 + session-to-PR 关联度量两项检查项；新增反模式 15（自进化自证循环）。article 新增 §3.5 再评估危机段、§3.6 Symphony 小节、§5.20 Faros 案例、§6.19 session-to-PR 度量、§2.3 补 Externalization、§12 补三层防作弊协议；implementation-guide 同步度量与公平评估（含指南同步） |
 | 2026-10-22 | v1.18 | 补 4 个权威来源（共 86 个），主题"实证定论 + 安全四层 + 领域普查"：Anatomy of Coding Agents（Barbaste，83 页——11 生产 harness + Omnigent 源码解剖，400 万行零框架导入零向量检索，SKILL.md 超 MCP，行为策略 prompt 散文→配置，"工具到平台"定论）、Trustworthy agents in practice（Anthropic——model/harness/tools/environment 四层组件模型 + Plan Mode 策略层监督 + prompt injection 多层防御）、State of AI Harness Engineering 2026（Marmelab——246 仓库普查：60% harness 无 test/eval、25% AI 签名、负结果集 reviewer -8pp/>4 交接失败/预写规则少拦 20.1pp、Vercel 砍工具正结果）、Model Hardware Standard（Anthropic——具身 Harness 标准协议层，Physical AI 运行时 + HARBOR 研发时之外的第三端口）。D5 新增四层组件纵深防御检查项并扩 5 星、D6 新增 harness 自身双向 guard 测试 + control expiry condition 两项检查项并扩 5 星、D5/D6/D9 来源行补充；反模式 1（软硬失衡）补 Marmelab 4.4% 量化证据。article 新增 §5.21 Marmelab 普查案例、§7.6 多层防御、§12 源码解剖定论小节、§12 具身 Harness 补 MHS 段（含指南同步） |
+| 2026-10-30 | v1.19 | 补 5 个权威来源（共 91 个），主题"Karpathy 话语体系接入"：Sequoia Ascent 2026（agentic engineering 大众化命名，职责清单与 harness 工程逐项重合 + agent-native sensors/actuators + 2025-12 agentic 拐点一手观察）、2025 LLM Year in Review（Claude Code "顺序优先级"：localhost 赢在已启动电脑/context/data/secrets/低延迟而非算力位置；LLM 应用层四职责 context engineering 居首）、Verifiability（可指定/可验证框架 + resettable/efficient/rewardable 三条件）、Animals vs. Ghosts 与 The space of minds（jagged intelligence 理论底座）。D6 来源行补 Verifiability 并新增"验证环境可练习三条件"检查项；新增反模式 16（人类优先接口）。article §3.2 补 Karpathy 术语源与 Cursor 四职责、§3.3 补 agentic engineering 命名段、新增 §5.22 Karpathy 案例、§9 错误五扩 agent-native 清单、参考资源 +5（无 PRACTICE 级新组件，指南不同步） |
