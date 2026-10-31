@@ -3,15 +3,15 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.21
-**更新日期**: 2026-10-30
+**版本**: v1.22
+**更新日期**: 2026-11-01
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
 ---
 
 ## 结构导航
 
-> 本文件阅读顺序：**权威来源表**（证据底座，可跳过先看框架）→ **评估维度 D1-D9**（每维度含来源/原则/检查项/星级标准）→ **评分体系**（星级含义 + 成熟度等级 + 评分协议）→ **常见反模式 1-16** → **评估输出模板** → **更新日志**。
+> 本文件阅读顺序：**权威来源表**（证据底座，可跳过先看框架）→ **评估维度 D1-D9**（每维度含来源/原则/检查项/星级标准）→ **评分体系**（星级含义 + 成熟度等级 + 评分协议）→ **常见反模式 1-17** → **评估输出模板** → **更新日志**。
 >
 > 只想评估项目：直接跳 D1-D9 逐项打勾，再按评分协议汇总；只想了解反模式排查：跳反模式章节；跨文件找主题：见 README 文件导航。
 
@@ -112,6 +112,7 @@
 | [Verifiability](https://karpathy.bearblog.dev/verifiability/) | Andrej Karpathy（2025.11） | Software 1.0 自动化可指定、2.0 自动化可验证；可验证环境三条件 resettable/efficient/rewardable——任务自动化潜力预判框架 |
 | [Animals vs. Ghosts](https://karpathy.bearblog.dev/animals-vs-ghosts/) | Andrej Karpathy（2025） | LLM 是统计模拟的"幽灵"而非动物智能，能力 jagged 是常态——人在回路与经验主义使用姿势的理论依据 |
 | [The space of minds](https://karpathy.bearblog.dev/the-space-of-minds/) | Andrej Karpathy（2025） | 优化压力（商业进化 vs 生物进化）决定 LLM 智能渐近线；建立准确内部模型者更能预测其行为边界 |
+| [Super-agent 设计探索](https://mp.weixin.qq.com/s/zoS7GlReWPhfCjENGxXCdg)（[原型 dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype)） | DeepSeek Harness 团队（2026.10） | 首个公开的多任务组织级 Harness：双层架构（Router/Worker）+ 事件驱动（两级过滤/订阅直通/Inline & Spill）+ Mandate 授权准入（Gate+Assessment+观察模式）；消融实验证明分工固化到系统层优于提示词临场分工（p95 29.5→15.7min，合成负载）；原型 15K 源码+15K 测试，单进程无 Watchdog、主动工作默认只记录不执行——引用需保留"初步、自报、合成负载"限定 |
 
 ---
 
@@ -211,6 +212,8 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 不同任务类型加载不同的上下文（非全量加载）
 - [ ] 项目级指南按子系统分离（前端/后端各自的 CLAUDE.md）
 - [ ] 按需加载的工具和权限（非一次性全部暴露）
+- [ ] 上下文按 Cache 管理（Inline & Spill）：高局部性信息内联进窗口（相邻消息、关联对象 ID、内容摘要），超出预算溢出为"引用 + 摘要"按需读取——内联太多稀释注意力、太少徒增工具往返，两头都是浪费（参考 DeepSeek Super-agent 的有界窗口：首 5 条 + 触发点两侧各 5 条 + 50 字符 stub）
+- [ ] 跨对象上下文用引用图链式召回（对象间内联关联 ID，按需逐跳展开到关联任务/评审线程），且读引用带白名单校验（分页游标/对象 ID 必须来自先前返回值，防模型幻觉游标——参考 DeepSeek Super-agent 的 cursor 白名单 + 分页快照缓存）
 
 #### D2.3 Compress（压缩）
 
@@ -330,6 +333,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 确定性合规由中间件钩子强制执行（PII 脱敏、内容审核等"每次必触发"的策略用代码实现而非提示词——"无法用提示词实现 HIPAA 合规"，参考 Middleware Customization）
 - [ ] 契约验证围绕可替换的组合边界用代码强制（answer contracts / entity routing / output hygiene 由代码所有，跨模型替换仍成立；外挂 guardrail 会 over-refuse 牺牲可用性，提示词两头不靠——参考 Prompts to Contracts 的 120/120 vs 88/120）
 - [ ] 防御覆盖四层组件而非仅模型层（model/harness/tools/environment 各层有独立审计：harness 指令与护栏、工具最小权限、环境访问边界——"没有单层防御足够"，prompt injection 需模型识别 + 运行时拦截 + 红队实测多层叠加——参考 Trustworthy agents）
+- [ ] 事件驱动的任务授权建模为可再验证对象（Mandate 模式：accept 时固化策略版本/强度/准入依据；Gate 用确定性代码查准入表、LLM Assessment 输出被 schema 强约束；策略变更逐任务复验而非一刀切撤销；主动工作先 observe 只记录不执行——参考 DeepSeek Super-agent）。注意两条限定：通知式撤权对在跑任务的外部副作用无强制力，高风险操作需在执行边界再做确定性权限检查；批量评估逐条独立判定授权，防批内搭便车（反模式 17）
 
 **评估标准**：
 - 1 星：无安全意识，Agent 拥有完全权限
@@ -413,13 +417,16 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 恢复执行遵循 replay safety（从检查点/会话恢复时不重复副作用——副作用包成幂等或隔离，从持久化结果取回而非重算；"resume 不破坏现实"——参考 The Harness Is the Product）
 - [ ] 有显式 stop conditions（done / blocked / awaiting_approval / awaiting_external_event / needs_human_decision / aborted_due_to_budget 等明确终止态，而非"一直跑到 token 耗尽"——参考 The Harness Is the Product）
 - [ ] 编排形态按任务可预知度选择（结构可预知的流程用图/确定性路径编码，开放探索用 agentic 核心循环；图节点可为完整 agent run，固定/模型/Agent 三类节点可混排——参考 Graph Engineering 的决策边界）
+- [ ] 多任务/事件驱动场景采用双层调度（Router/主会话只承接交互与分派、不直接执行任务；Worker/子会话上下文隔离并发，已归属 Thread 的后续事件直通对应 Worker 不经 Router 转发），分工固化到系统层而非靠提示词让模型临场决定——消融实验：中性提示词下模型 5 次运行 0 次调用 Subagent（p95 29.5min）vs 双层架构 p95 15.7min；直通省 Router 决定数 30%/token 37%（参考 DeepSeek Super-agent，合成负载限定）
+- [ ] 人的输入在并发调度中保留优先机会（人的 follow-up 唤醒可用超出常规上限的额外并发槽，不排在批量任务启动之后——参考 DeepSeek Super-agent 的 WorkerSlots；注意只是"额外机会"而非绝对不排队，超额槽被占时仍需等待）
+- [ ] 事件准入做两级过滤（确定性程序策略先筛——来源/群组/白名单等稳定判断固化为代码；LLM 语义策略兜底——用提示词开关或新增策略扩展），在调用模型前滤除大部分噪音（参考 DeepSeek Super-agent 的 Fast/Slow Path；事件驱动系统"高噪音、低触发率"，逐条调模型延迟与算力都不可承受）
 
 **评估标准**：
 - 1 星：无工作流，Agent 自由发挥
 - 3 星：有基本流程但缺少验证/恢复环节，无自动化调度
-- 5 星：完整工作流 + 验证 + 恢复 + 工具精简 + 多 Agent 协作 + 自动化调度 + 跨会话状态 + 目标驱动 + 高频任务确定性回放 + 模型专属配置 + 可组合中间件 + agent 自补缺失工具 + 编排形态按可预知度选择
+- 5 星：完整工作流 + 验证 + 恢复 + 工具精简 + 多 Agent 协作 + 自动化调度 + 跨会话状态 + 目标驱动 + 高频任务确定性回放 + 模型专属配置 + 可组合中间件 + agent 自补缺失工具 + 编排形态按可预知度选择 + 事件驱动双层调度（按需）
 
-> **必备/按需分层**：必备 = 完整工作流 + 验证 + 恢复 + 工具精简；其余全部按需高级——按任务可预知度与规模选择（结构可预知才上图/调度，高频重复才上回放，多模型才上 profile）。能力越多权限面越大，与"做更少"哲学（Vercel 砍 80% 工具、Bitter Lesson 心法）互相平衡；自补工具（self-heal）是受控高级选项，非默认追求
+> **必备/按需分层**：必备 = 完整工作流 + 验证 + 恢复 + 工具精简；其余全部按需高级——按任务可预知度与规模选择（结构可预知才上图/调度，高频重复才上回放，多模型才上 profile，事件驱动多任务才上双层调度与两级过滤）。能力越多权限面越大，与"做更少"哲学（Vercel 砍 80% 工具、Bitter Lesson 心法）互相平衡；自补工具（self-heal）是受控高级选项，非默认追求
 
 ---
 
@@ -583,6 +590,12 @@ Agent 拥有完整的文件系统访问和命令执行权限，无任何操作�
 
 **正确做法**：每个能力提供 agent-native 版本——Markdown 文档、CLI、API、MCP server、结构化日志、机器可读 schema、可复制粘贴的 agent instructions、headless 安装。Karpathy 的抽象是 sensors（把世界状态变成数字信息）与 actuators（让 Agent 能改变世界）：按"Agent 能否直接读取/操作"逐项审视产品与工作流，缺口即改造清单。（对应 article §9 错误五）
 
+### 反模式 17：批内授权继承（Authority Borrowing in Batches）
+
+事件驱动的 Agent 为省推理开销常把多条环境事件合并成一批评估（DeepSeek Super-agent 的 Eval 批处理即如此），若实现为"以批内最强事件的授权为整批授权"，被准入门控拒绝的消息、其他发送者的消息仍会以批量上下文的名义进入评估窗口——恶意或无关旁注可能搭上合法请求的便车，扩大被授权的工作范围。第二视角评审（对照 dsh-superagent-prototype 源码）将其标注为**基于数据流的风险推测、尚未证明可利用**，但这正说明它容易被"批处理只是性能优化"的直觉掩盖。
+
+**正确做法**：批量是调度优化，不是授权单位——逐条事件独立判定授权强度，被拒消息不得进入被接受事件的评估上下文（或显式降级为"仅背景、不构成授权"）；对混合发送者、明确请求加旁注的样本做对抗测试，检查最终工单范围与执行结果是否越权。配套认知：授权对象（Mandate）逐条可审计，是批内隔离的前提。
+
 ---
 
 ## 评估输出模板
@@ -710,3 +723,4 @@ Level X（一句话总结）
 | 2026-10-30 | v1.19 | 补 5 个权威来源（共 91 个），主题"Karpathy 话语体系接入"：Sequoia Ascent 2026（agentic engineering 大众化命名，职责清单与 harness 工程逐项重合 + agent-native sensors/actuators + 2025-12 agentic 拐点一手观察）、2025 LLM Year in Review（Claude Code "顺序优先级"：localhost 赢在已启动电脑/context/data/secrets/低延迟而非算力位置；LLM 应用层四职责 context engineering 居首）、Verifiability（可指定/可验证框架 + resettable/efficient/rewardable 三条件）、Animals vs. Ghosts 与 The space of minds（jagged intelligence 理论底座）。D6 来源行补 Verifiability 并新增"验证环境可练习三条件"检查项；新增反模式 16（人类优先接口）。article §3.2 补 Karpathy 术语源与 Cursor 四职责、§3.3 补 agentic engineering 命名段、新增 §5.22 Karpathy 案例、§9 错误五扩 agent-native 清单、参考资源 +5（无 PRACTICE 级新组件，指南不同步） |
 | 2026-10-30 | v1.20 | 外部审查修复轮（Codex 全库分析，5 个 P0 硬错误逐项对照原始来源核实后修正）：① 致命三要素第三项由"能修改状态"更正为"具备对外通信能力"（对照 Willison 原文——旧表述会漏掉纯外传攻击路径；article §7.1/§7.2、D5 原则行与 D5.1 检查项、guide §10、反模式 6 同步）；② guide §7 Hook 阻断说明更正为双路径（exit 2 是官方 Blocking error，与 exit 0+JSON deny 等效，修正正文与附录 A 的矛盾）；③ guide §7 "每次必中"限定为"匹配到即确定性拦截"并注明示例正则是演示非防线；④ guide §9 失败案例改入回归集、与 holdout 隔离（修复同节自相矛盾）；⑤ README 数据同步（22 案例/v1.19→v1.20 时点/91 来源/16 反模式）。另修 article §5.21 引用号（6.11→6.13）、§5.17 引用指向（→5.11）、§六/§八标题数字失实。P1/P2 结构性建议（D 维度五星分层、评分协议、校准案例）留待专项处理 |
 | 2026-10-30 | v1.21 | Codex 审查 P1 结构性改进轮：① D1/D2/D4/D7/D8/D9 六维五星标准增"必备/按需高级"分层注记（修复"研究能力全集化"——多 Agent 审查/记忆系统/自愈闭环/自动部署/回放/跨模型验证等改为按需高级并注明适用条件，Marmelab reviewer -8pp 为多 Agent 非硬条件的证据）；② 新增评分协议（N/A 不计中位数分母、未知按 1 星保守计入、安全红线：D5 1 星或反模式 6 无缓解时总评强制 Level 1、证据三态标注、跨维度重复计分注明主归属）；③ 新增评分校准示例三个（个人只读研究 Agent/小团队编码 Agent/生产支付对账 Agent——演示 N/A、计分陷阱与安全红线覆盖平均）；④ Rethinking 补 v4（2026.10）正结果边界：长时程游戏为自进化利好区（ARC-AGI-3 +80%/EdgeBench +11%），article §3.5/§12/参考资源、principles 来源表、guide §9 五处同步；⑤ article §12 源码解剖结论限定样本范围（11 系统实证 ≠ 全领域定律）；⑥ principles 增结构导航、README 增术语对照表 |
+| 2026-11-01 | v1.22 | 补 1 个权威来源（共 92 个），主题"多任务组织级 Harness + 事件驱动授权"：DeepSeek《Super-agent 设计探索》（2026.10，首个公开多任务/团队级设计：双层架构/事件驱动/存算分离/Watchdog）+ 开源原型 dsh-superagent-prototype（15K 源码+15K 测试，经源码级分析 + Codex 第二视角评审双重核实：单进程无 Watchdog/端侧 daemon，主动工作默认 observe 只记录不执行）。D2.2 新增 Inline & Spill 窗口当 Cache + 引用图链式召回（游标白名单）两项检查项、D5.2 新增 Mandate 可再验证授权对象检查项（含通知式撤权/批内混合两条限定）、D8 新增双层调度（消融数据）/人优先并发/两级事件过滤三项检查项并扩五星；新增反模式 17（批内授权继承）。article 新增 §5.23 Super-agent 案例、§7.7 事件驱动授权准入、参考资源 +1（含指南同步） |

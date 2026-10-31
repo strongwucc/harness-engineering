@@ -707,6 +707,26 @@ Andrej Karpathy（OpenAI 创始成员、前 Tesla AI 总监）在《2025 LLM Yea
 
 **人在回路管什么**：两个一手案例。MenuGen 项目中 agent 试图用 Stripe 邮箱匹配 Google 账号来发放积分——代码合理但系统设计错误（两个邮箱可以不同），人类必须坚持用持久 user ID 关联资金；反向，microGPT 项目里他反复要求 LLM 极简化代码，"模型做不到，像拔牙"——taste/简化没进 RL 电路，生成的代码"能跑但臃肿、复制粘贴、抽象尴尬"。结论：Agent 负责召回 API 细节（dim 还是 axis 已不必记），人类负责存储、视图、不变量、身份、安全边界与系统形状。
 
+### 5.23 DeepSeek Super-agent：多任务组织级的 Harness
+
+前 22 个案例都在回答"单任务 Agent 怎么做得好"。2026 年 10 月 31 日，DeepSeek Harness 团队发布了目前最完整的一份**多任务/团队级**公开答案：《[Super-agent 设计探索](https://mp.weixin.qq.com/s/zoS7GlReWPhfCjENGxXCdg)》，配套开源原型 [dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype)（15K 行源码 + 15K 行测试，测试代码比 1:1）。
+
+出发点是一条瓶颈转移的判断：**单任务的上限取决于模型能力，多任务的上限取决于人的注意力**——人只能同时跟进 3~5 个活跃 Session。要让 Agent 从"被动等指令的对话窗口"变成"持续在线的自主协作者"，需要四个特征：**连续**（跨信道感觉只有一个 Agent）、**高效**（并发多任务）、**主动**（响应环境事件）、**持久**（长期在线自愈）。
+
+支撑四特征的五个模块，几乎每个都是计算机系统经典思想在 Agent 上的映射（作者自认"没有提出全新理论"，价值在于系统化的映射与论证）：
+
+| 模块 | 经典思想 | 设计 |
+|---|---|---|
+| 双层架构 | 前后端分离 | Router 层常驻：只承接交互与分派、不执行任务（甚至不配执行工具）；Worker 层上下文隔离、挂全工具、用最强模型。核心论断："Session 应当是系统的实现细节，而不应是用户的认知负担" |
+| 事件驱动 | Fast/Slow Path + 缓存局部性 + 投机执行 | 两级过滤（确定性 Gate 先筛、LLM Assessment 兜底）、订阅直通（已归属 Thread 的事件不经 Router 直达 Worker）、Inline & Spill（上下文窗口当 Cache 管）、链式召回（对象引用图逐跳展开） |
+| 面向人的交互 | 半双工 → 全双工 | 异步 ReAct Loop：`start()/stop()` 替代阻塞的 `run()`，结果作为新事件回投 |
+| 存算分离 | Compute-Storage Separation | Agent Loop 上云为无状态容器、Session 状态进数据库；重状态执行环境留在原地（端侧轻量 daemon），支持 BYOM 与间歇在线设备 |
+| Watchdog | 外部 Control Loop | 独立 Session 判断 Worker"是否有实质进展、方向是否偏离"，而非只探进程存活 |
+
+最有说服力的是消融实验（合成负载：~300 条消息含 20 条工作请求，编码工作用耗时工具 mock，**只测调度不测任务质量**）：**Super-agent p50/p95 = 12.4/15.7 分钟；带 Subagent 工具的单 Session 在中性提示词下 5 次运行一次都没调用 Subagent**，所有工作在主 Session 被新消息打断，p95 达 29.5 分钟。结论很硬：靠提示词让模型临场决定"分不分工"不可靠，**把分工固化到系统层**（Router 无执行工具、Worker 只收订阅事件）才稳定。订阅直通的消融：去掉直通任务速度基本不变，但 Router 决定数 +30%、读缓存 token +37%——直通买的是中心节点负载，不是任务速度。批处理压测：事件到达率提 40 倍（1→40 条/分钟），单次请求耗时仅从 2.5s 涨到 3.9s，单个决定分摊的推理时间反而从 6.4s 降到 1.6s——"单常驻 Router 会成瓶颈"的直觉在团队规模下不成立。
+
+文章诚实标注了局限（合成负载、5 次重复、仅测调度），且经源码核对：**原型为单进程 SQLite + 目录锁，无 Watchdog 模块、无端侧 daemon；主动工作默认 observe 模式只记录不执行——比文章更保守**。原型里比文章更重的部分是一套授权体系（Mandate 准入模型，见 6.20）。独立第二视角评审补充的风险点（批内授权混合、通知式撤权无强制力）见反模式 17 与 6.20 的限定。
+
 ---
 
 ## 六、Harness 的核心组件
@@ -968,6 +988,23 @@ Anthropic 2026 年 4 月的《Trustworthy agents in practice》给安全章节�
 - **prompt injection 没有单层银弹**：模型训练识别注入模式 + 生产流量监控拦截真实攻击 + 外部红队实测——三层叠加"仍然不是保证"。这与 6.12 中间件的确定性合规形成分工：模型层做概率性识别，harness 层做确定性兜底，两层都不能省。
 
 文章最后把镜头拉到生态层面：呼吁标准化 prompt injection 防御基准（NIST）、跨公司证据共享，并强调开放协议的价值——MCP 已捐赠给 Linux Foundation 的 Agentic AI Foundation，因为"安全属性应该一次性设计进基础设施，而不是每个部署各打一次补丁"。**Agent 安全不是任何一家公司能独立完成的工作**——这句话把 7.1-7.5 的工程清单接入了行业标准化的时间线。
+
+### 7.7 事件驱动的授权准入：一条群消息凭什么让 Agent 开工？
+
+7.1-7.6 的机制默认一种交互模型：人下指令，Agent 执行。DeepSeek 的 Super-agent（5.23）把驱动源换成环境事件流（群聊消息、PR 评论、CI 通知）后，问题变成：**环境里任意一条消息，凭什么能让 Agent 开工？** 这正是致命三要素（7.1）里"处理不可信输入"与"对外通信能力"被同时拉满的场景——事件驱动把攻击面从"用户输入"扩大到"整个工作环境"。
+
+开源原型 dsh-superagent-prototype 的答案是一套三级准入，全部在 Harness 层：
+
+1. **Gate（确定性代码）**：按"允许名单 × 是否点名"查一张可配置的 admission 表，每格 ignore / inferred / explicit 三档；机器触发器（CI/bot）走独立门控——只有白名单 bot 可过且最多 inferred 档。信任边界在类型层就标注：`Trigger` 的 text/meta 被声明为 **untrusted external data**，"是否人写""是否点名了 Agent"由来源插件声明、由门控验证，而非模型推断。
+2. **Assessment（模型研判）**：通过 Gate 的候选事件交 LLM 判定，但输出被 schema 强约束——必须对每条启用规则给出**恰好一次**判定（缺失/重复/未知 ID 全拒），accept 还要求"方向已定、目标明确、无未决设计决策 + 意图引文"。模型判断被关进结构化笼子，schema 验证做的是格式与规则校验——语义真伪仍依赖提示词与上下文，这一点要诚实。
+3. **观察模式**：推断候选照常研判，但 accept 被降级为"记录本来会做什么"（would_accept 落审计）——**主动工作先只记录、不执行**，运行一段时间确认判断质量后再切 auto。信任建立是渐进开关，不是一上来就放权。
+
+关键设计是**授权 = 可再验证的不可变对象（Mandate）**：accept 时固化策略版本、强度（explicit/inferred）、准入依据；策略变更时不一刀切撤销，而是逐任务复验（来源仍在监听？规则仍启用？当前准入格强度不低于原授权？）——对在跑任务投递"遵守新边界"的通知而非中途掐断留半成品。
+
+两条工程限定（来自独立第二视角评审，引用时别过度赞誉）：
+
+- **通知式撤权不是强制终止**：策略变更只投递通知，正在运行的任务的外部操作能力不会立即消失。若业务要求"撤权后立即禁止外部写操作"，需要在执行边界再做一次确定性权限检查——授权治理（6.20）不等于运行时硬隔离。
+- **批内授权混合风险**：批量评估以批内最强事件建立整批授权，被 Gate 拒绝的消息混入同批可能"搭便车"进入上下文——这是基于数据流的风险推测，尚未证明可利用，但值得按反模式 17 排查自己的系统。
 
 ---
 
@@ -1301,6 +1338,7 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [An open-source spec for Codex orchestration: Symphony](https://openai.com/index/open-source-codex-orchestration-symphony/)（OpenAI，2026.04；[GitHub 26.9k stars](https://github.com/openai/symphony)）——harness engineering 的官方下一步："从管理 coding agents 到管理 work"；Linear 看板作控制平面、隔离自主实现运行、proof of work（CI/审查/复杂度/走查视频）；SPEC.md 优先——让任意 coding agent 按规格自行实现
 - [Trustworthy agents in practice](https://www.anthropic.com/research/trustworthy-agents)（Anthropic，2026.04）——Agent 四层组件模型（model/harness/tools/environment）与五原则的落地版：Plan Mode 把人类监督从单步审批上移到整体策略审批；训练模型"不确定时暂停而非假设"（复杂任务上 check-in 率翻倍）；prompt injection 多层防御（模型识别 + 流量监控 + 红队，无单层银弹）；生态倡议——NIST 注入防御基准、证据共享、MCP 捐赠 Linux Foundation
 - [Previewing the Model Hardware Standard](https://www.anthropic.com/news/model-hardware-standard-research-preview)（Anthropic，2026.08）——具身 Harness 的标准协议层：与 HHMI Janelia 合作，让 Agent 并行安全操作显微镜/液体处理器/机械臂等物理仪器，把硬件集成从数周压缩到小时级，支持实验参数实时调整与硬件错误自恢复——MCP 的"工具接口标准化"角色在物理世界重演
+- [Super-agent 设计探索：迈向更自主的 Agent 系统](https://mp.weixin.qq.com/s/zoS7GlReWPhfCjENGxXCdg)（DeepSeek Harness 团队，2026.10；[原型 dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype)，MIT）——目前最完整的多任务/团队级 Harness 公开设计：四特征（连续/高效/主动/持久）→ 五模块（双层架构/事件驱动/面向人的交互/存算分离/Watchdog），计算机系统经典思想（Fast/Slow Path、缓存局部性、投机执行、存算分离、Control Loop）系统化映射到 Agent；消融实验（合成负载）证明"分工固化到系统层"优于提示词临场分工（p95 29.5→15.7min）；配套原型 15K 源码 + 15K 测试，授权体系（Mandate/admission 表/观察模式）比文章更完整——源码核对：原型为单进程 SQLite，Watchdog/端侧 daemon 未实现，主动工作默认只记录不执行
 
 ### 深度解读
 - [Engineering Rigor Doesn't Disappear — It Relocates: Four Years of AI Agentic Patterns](https://bits-bytes-nn.github.io/insights/agentic-ai/2026/04/05/evolution-of-ai-agentic-patterns-en.html)——从提示词到上下文到 Harness 的完整演进史

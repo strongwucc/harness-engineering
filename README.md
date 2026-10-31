@@ -16,11 +16,11 @@ Agent Harness Engineering 的系统化中文资料，覆盖 Why / Measure / How 
 
 ### 长文（Why）
 
-`harness-engineering-article.md` — 从 Prompt Engineering → Context Engineering → Harness Engineering → Loop Engineering 的完整范式迁移，含 22 个真实案例（OpenAI 100 万行零手写代码、Anthropic 16 Agent 集群写 C 编译器、LangChain 纯 Harness 优化 Top 30→Top 5、Stripe Minion 周产 1000+ PR、Bayer 制药 Harness、Marmelab 246 仓库普查、Karpathy agentic engineering 等），覆盖核心组件解剖、安全防护、设计原则、未来展望。
+`harness-engineering-article.md` — 从 Prompt Engineering → Context Engineering → Harness Engineering → Loop Engineering 的完整范式迁移，含 23 个真实案例（OpenAI 100 万行零手写代码、Anthropic 16 Agent 集群写 C 编译器、LangChain 纯 Harness 优化 Top 30→Top 5、Stripe Minion 周产 1000+ PR、Bayer 制药 Harness、Marmelab 246 仓库普查、Karpathy agentic engineering、DeepSeek Super-agent 多任务组织级 Harness 等），覆盖核心组件解剖、安全防护、设计原则、未来展望。
 
 ### 评估框架（Measure）
 
-`harness-principles.md` — v1.19，基于 91 个权威来源的 9 维度评估框架（Fowler 四象限、上下文工程、架构约束、熵管理、安全防护、测试验证、CI/CD、工作流编排、透明度），每维度 1-5 星制，含 16 个反模式和标准化评估输出模板。
+`harness-principles.md` — v1.22，基于 92 个权威来源的 9 维度评估框架（Fowler 四象限、上下文工程、架构约束、熵管理、安全防护、测试验证、CI/CD、工作流编排、透明度），每维度 1-5 星制，含 17 个反模式和标准化评估输出模板。
 
 ### 实施指南（How）
 
