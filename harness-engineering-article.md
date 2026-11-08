@@ -725,7 +725,7 @@ Andrej Karpathy（OpenAI 创始成员、前 Tesla AI 总监）在《2025 LLM Yea
 
 最有说服力的是消融实验（合成负载：~300 条消息含 20 条工作请求，编码工作用耗时工具 mock，**只测调度不测任务质量**）：**Super-agent p50/p95 = 12.4/15.7 分钟；带 Subagent 工具的单 Session 在中性提示词下 5 次运行一次都没调用 Subagent**，所有工作在主 Session 被新消息打断，p95 达 29.5 分钟。结论很硬：靠提示词让模型临场决定"分不分工"不可靠，**把分工固化到系统层**（Router 无执行工具、Worker 只收订阅事件）才稳定。订阅直通的消融：去掉直通任务速度基本不变，但 Router 决定数 +30%、读缓存 token +37%——直通买的是中心节点负载，不是任务速度。批处理压测：事件到达率提 40 倍（1→40 条/分钟），单次请求耗时仅从 2.5s 涨到 3.9s，单个决定分摊的推理时间反而从 6.4s 降到 1.6s——"单常驻 Router 会成瓶颈"的直觉在团队规模下不成立。
 
-文章诚实标注了局限（合成负载、5 次重复、仅测调度），且经源码核对：**原型为单进程 SQLite + 目录锁，无 Watchdog 模块、无端侧 daemon；主动工作默认 observe 模式只记录不执行——比文章更保守**。原型里比文章更重的部分是一套授权体系（Mandate 准入模型，见 6.20）。独立第二视角评审补充的风险点（批内授权混合、通知式撤权无强制力）见反模式 17 与 6.20 的限定。
+文章诚实标注了局限（合成负载、5 次重复、仅测调度），且经源码核对：**原型为单进程 SQLite + 目录锁，无 Watchdog 模块、无端侧 daemon；主动工作默认 observe 模式只记录不执行——比文章更保守**。原型里比文章更重的部分是一套授权体系（Mandate 准入模型，见 7.7）。独立第二视角评审补充的风险点（批内授权混合、通知式撤权无强制力）见反模式 17 与 7.7 的限定。
 
 ### 5.24 Are Harnesses Worth the Cost?：harness 价值的条件性实证
 
@@ -735,12 +735,12 @@ Andrej Karpathy（OpenAI 创始成员、前 Tesla AI 总监）在《2025 LLM Yea
 
 | 模型 | 无 harness | 有 harness | 结论 |
 |---|---|---|---|
-| GPT-6 Sol（前沿） | 10/10 | 10/10 | 全程 harness 多花 6.6 倍 token、约 7 倍成本、3 倍时间，验收结果零差异——纯开销 |
+| GPT-6 Sol（前沿） | 10/10 | 10/10 | 全程 harness 多花约 10.5 倍 token（11.3M vs 1.08M）、约 6.6 倍成本、约 3 倍时间，验收结果零差异——纯开销 |
 | GPT-6 Luna（成本优化） | 3/10 | 10/10 | harness 把 3/10 基线变成 10/10；且 harnessed Luna（$0.273）比 unharnessed Sol（$0.406）还便宜 33% |
 
 作者提出的 **executable attention** 概念解释了机制：harness 是外部记忆与注意力辅助——失败案例的遗漏几乎全是"brief 里写明了但在实现中失去影响力"的需求（attention lapse），sensor 变红时把丢失的需求拉回焦点；失败集群出现在协议边界、容错路径、集成缝——"貌似合理的实现仍可能在系统层面失败"。
 
-落地结论：**模型能力改变的是 sensor 何时运行，而非是否需要独立验证**。前沿模型：开发中不套全程 harness，仅保留独立终门验收（Sol 10/10 仍依赖外部评估才能确认）；成本优化模型：开发全程套 harness 作为 executable attention，用反馈扩大可用模型集——"如果 harness 能让一个便宜模型可靠交付，这是很有吸引力的选项"。作者同时诚实标注边界：单一 greenfield Java 服务、10 对运行、guides 与 sensors 未分离归因、未测 legacy 修改与不完整 brief 场景。
+落地结论（作者的**条件性假设**，终门方案为其提出但尚未实测的下一步实验）：模型能力改变的是 sensor 何时运行，而非是否需要独立验证——前沿模型可裸跑 + 独立终门验收（Sol 10/10 仍依赖外部评估才能确认）；成本优化模型可全程套 harness 作为 executable attention，用反馈扩大可用模型集。作者同时诚实标注边界：单一 greenfield Java 服务、每模型 10 对运行、低推理强度、单一异常详细的 brief、guides 与 sensors 未分离归因、"仅终门"工作流未实测、成本仅含生成不含 harness 建设维护与失败修复、未测 legacy 修改与不完整 brief 场景。
 
 ---
 
@@ -764,13 +764,13 @@ Harness 定义可访问的目录、允许的操作和冲突解决策略。Claude
 - 结构化的结果封装 `{ ok, data, error, meta }`
 - 时间、重试、成本预算
 
-工具暴露本身也要按上下文效率取舍：**模型已经熟悉的 CLI 优先于 MCP server**。把训练数据覆盖良好的 GitHub/Docker/数据库功能做成 MCP，工具描述会注入系统提示词挤占指令预算（每条工具描述都是一条 agent 必须处理的指令），而 CLAUDE.md 里几行 CLI 用法示例即可替代；MCP 留给真正的新能力。且 MCP 工具描述注入系统提示词这一机制意味着**永远不要连接不信任的 server**——那是现成的提示词注入向量。（参考 HumanLayer Skill Issue + Vercel 砍工具实证）
+工具暴露本身也要按上下文效率取舍（经验建议，随客户端实现而异）：**模型已经熟悉的 CLI 往往优于 MCP server**。在把工具描述注入系统提示词的客户端中，把训练数据覆盖良好的 GitHub/Docker/数据库功能做成 MCP 会挤占指令预算（每条工具描述都是一条 agent 必须处理的指令），而 CLAUDE.md 里几行 CLI 用法示例即可替代；MCP 留给真正的新能力。加载策略随客户端而异（tool search 类机制可渐进披露），套用前先核实所用客户端的行为。且工具描述注入这一机制意味着**永远不要连接不信任的 server**——那是现成的提示词注入向量。（参考 HumanLayer Skill Issue + Vercel 砍工具实证）
 
 ### 6.4 子 Agent 协调
 
 复杂任务需要专业化的 Agent。一个研究，一个编写，一个审查。Harness 管理通信、合并输出、解决冲突。关键原则：**不要让每个 Agent 都拥有所有工具。**
 
-HumanLayer 把 sub-agent 的核心价值从"专业分工"重新表述为 **context firewall**：子代理把一整个会话的工作封装起来，父会话只看到自己写的派发提示词和子代理的最终结论——中间的每一次工具调用、每一个 grep 结果都不进入父上下文。这既是连贯性机制（把主会话留在"聪明区"，Chroma 的 context rot 实证显示干扰效应在长上下文中复合），也是成本机制（贵模型做编排、便宜模型做执行）。子代理返回结论时应附带 `filepath:line` 或 URL 引用，让父代理可按需回溯而不必暴露全部原始来源。
+HumanLayer 把 sub-agent 的核心价值从"专业分工"重新表述为 **context firewall**：子代理把一整个会话的工作封装起来，父会话通常只看到自己写的派发提示词和子代理的最终结论——中间的每一次工具调用、每一个 grep 结果都不进入父上下文（这是有用的设计模型，具体隔离范围与可见性随运行时实现而异）。这既是连贯性机制（把主会话留在"聪明区"，Chroma 的 context rot 实证显示干扰效应在长上下文中复合），也是成本机制（贵模型做编排、便宜模型做执行）。子代理返回结论时应附带 `filepath:line` 或 URL 引用，让父代理可按需回溯而不必暴露全部原始来源。
 
 ### 6.5 提示词库管理
 
@@ -846,7 +846,7 @@ LangChain 在 2026 年 4 月的实践中发现了一个反直觉的事实：**�
 
 Deep Agents v0.6 将这一理念扩展到开源模型（Kimi、Qwen、DeepSeek），在保持 20 倍以上成本优势的同时，通过专属 Harness 配置缩小了与前沿模型的差距。核心原则：**为模型适配 Harness，而非为 Harness 选择模型。**
 
-"用训练时的 harness 就是最好的"同样不成立——模型可能过拟合自身 harness：Terminal Bench 2.0 上 Opus 4.6 在 Claude Code（其训练时的 harness）排 #33，换到训练时未见过的 harness 后升至 #5（±4 位）。这给 Harness Profiles 提供了另一个理由：换 harness 不是风险，反而可能是收益。（参考 HumanLayer，2026.03）
+"用训练时的 harness 就是最好的"同样不成立——TB2 上 Opus 4.6 在 Claude Code（其训练时的 harness）排 #33，换到训练时未见过的 harness 后升至 #5（±4 位）。这一排名差异支持"模型可能过拟合自身 harness"的假设（尚不能排除其他配置与评测因素），给 Harness Profiles 提供了另一个理由：换 harness 不是风险，反而可能是收益。（参考 HumanLayer，2026.03）
 
 2026 年 7 月的 Nemotron 3 Ultra 调优（详见 5.17）给 Profiles 机制补了一条关键纪律——**core vs profile 切分**。每条 harness 改动要么是**核心改进**（对任何模型都生效，如"读到整页文件就假定还有更多、继续读"），要么是**profile 配置**（只编码某个模型的口味）。Profile 的作用恰恰是隔离后者，让 core 保持干净；调优时要对每条改动追问"它能往 core 推多远"，然后诚实地推到最远处——因为只有 core 版本会在"换模型、换任务"之后继续受益。配套的微观技巧是 **signal placement**：同一条指令写在系统提示词、工具描述、工具返回结果或注入消息里，效果可能相反——规则不只关乎"说什么"，更关乎"出现在哪里才会被读到"。
 
@@ -1024,7 +1024,7 @@ Anthropic 2026 年 4 月的《Trustworthy agents in practice》给安全章节�
 
 两条工程限定（来自独立第二视角评审，引用时别过度赞誉）：
 
-- **通知式撤权不是强制终止**：策略变更只投递通知，正在运行的任务的外部操作能力不会立即消失。若业务要求"撤权后立即禁止外部写操作"，需要在执行边界再做一次确定性权限检查——授权治理（6.20）不等于运行时硬隔离。
+- **通知式撤权不是强制终止**：策略变更只投递通知，正在运行的任务的外部操作能力不会立即消失。若业务要求"撤权后立即禁止外部写操作"，需要在执行边界再做一次确定性权限检查——授权治理（7.7）不等于运行时硬隔离。
 - **批内授权混合风险**：批量评估以批内最强事件建立整批授权，被 Gate 拒绝的消息混入同批可能"搭便车"进入上下文——这是基于数据流的风险推测，尚未证明可利用，但值得按反模式 17 排查自己的系统。
 
 ---
@@ -1238,9 +1238,16 @@ NLAH（Natural-Language Agent Harnesses）则从另一个角度切入：**Harnes
 
 ### 主动式 Agent 的上下文工程：下一个前沿
 
-2026 年 11 月，Harrison Chase（LangChain）在[《New context engineering challenges in late 2026》](https://www.langchain.com/blog/context-engineering-challenges-late-2026)中指出：上下文工程的定义是"决定 agent 每一步看到什么"，而**主动式（proactive）agent——定时唤醒、自主决定是否发言的 agent——正在打破 reactive agent 时代积累的全部隐含假设**。被唤醒时的上下文重建、长线程何时摘要、大对象何时卸载、发言决策本身占用的上下文预算……这些在"用户发消息→agent 响应"的 reactive 流里要么不存在、要么可忽略的问题，在 proactive 场景全部成为一等工程对象。
+2026 年 11 月，Harrison Chase（LangChain）在[《New context engineering challenges in late 2026》](https://www.langchain.com/blog/context-engineering-challenges-late-2026)中回应了一种流行情绪——"难题都解决了"。他的答案是：长线程摘要、大结果卸载、skills 渐进披露、tool search、subagents 上下文隔离这些确实已是标准实践，但**proactive、always-on、goal-oriented agents 正在带来一整组新的上下文工程挑战，且行业还没有（通用）解**：
 
-这与 §5.23 Super-agent 的"主动"特征和 §7.7 事件驱动授权准入同题：Super-agent 用两级过滤 + 订阅直通回答"事件怎么进来"，Chase 的问题清单回答"进来之后上下文怎么管"。两个视角合起来，大致就是多任务组织级 harness 上下文层的完整拼图。
+- **通知校准**（proactive without being annoying）：后台 agent 靠事件流或心跳唤醒，推太少没有帮助感，推太多淹没用户——校准到"愉悦的体验"仍是硬问题；
+- **记忆智能层**：记忆系统的数据结构往往简单（文件、一个字符串），难的是决定"记什么、何时记"的智能层——它本身常是一个简单 agent，其上下文工程仍是开放问题；
+- **异步完成通知**：越来越多的工作在异步工具和子代理里完成，主 agent 要保持对新消息的响应——工作完成时怎么通知主 agent？主 agent 还在跑、已结束、还是暂停等人类审批，三种状态怎么分别处理？
+- **目标跟踪**：agent 从"做任务"转向"朝目标工作"——分解目标、做实验、拿反馈、持续迭代，且在长时程保持一致，都很难；
+- **对齐防作弊**：用户很难设计出 agent 无法作弊的目标（"清除所有 bug"→删光整个代码库），如何设计 harness 让 agent 专注目标又不过度优化？
+- **浏览器上下文**：对 coding agent 最重要的工具是 bash；对通用 agent，这个角色正在让位给浏览器——而驱动浏览器比终端复杂得多，图像和 DOM 都是大对象，上下文怎么管？
+
+这与 §5.23 Super-agent 的"主动"特征和 §7.7 事件驱动授权准入同题：Super-agent 用两级过滤 + 订阅直通回答"事件怎么进来"（并把人优先并发、观察模式作为部分答案），Chase 的问题清单则给出"进来之后"的完整挑战地图。把两者合起来看多任务组织级 harness 的上下文层，是本库的综合判断，非 Chase 原文观点。
 
 ---
 
@@ -1370,8 +1377,8 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Previewing the Model Hardware Standard](https://www.anthropic.com/news/model-hardware-standard-research-preview)（Anthropic，2026.08）——具身 Harness 的标准协议层：与 HHMI Janelia 合作，让 Agent 并行安全操作显微镜/液体处理器/机械臂等物理仪器，把硬件集成从数周压缩到小时级，支持实验参数实时调整与硬件错误自恢复——MCP 的"工具接口标准化"角色在物理世界重演
 - [Super-agent 设计探索：迈向更自主的 Agent 系统](https://mp.weixin.qq.com/s/zoS7GlReWPhfCjENGxXCdg)（DeepSeek Harness 团队，2026.10；[原型 dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype)，MIT）——目前最完整的多任务/团队级 Harness 公开设计：四特征（连续/高效/主动/持久）→ 五模块（双层架构/事件驱动/面向人的交互/存算分离/Watchdog），计算机系统经典思想（Fast/Slow Path、缓存局部性、投机执行、存算分离、Control Loop）系统化映射到 Agent；消融实验（合成负载）证明"分工固化到系统层"优于提示词临场分工（p95 29.5→15.7min）；配套原型 15K 源码 + 15K 测试，授权体系（Mandate/admission 表/观察模式）比文章更完整——源码核对：原型为单进程 SQLite，Watchdog/端侧 daemon 未实现，主动工作默认只记录不执行
 
-- [Are Harnesses Worth the Cost?](https://martinfowler.com/articles/are-harnesses-worth-the-cost.html)（Naresh Jain / Martin Fowler，2026.10.13）——harness 价值的条件性量化实证：前沿模型全程 harness 多花 6.6 倍 token 验收零增益；成本优化模型 3/10→10/10 且比前沿模型便宜 33%；"executable attention"机制；模型能力决定 sensor 运行时机而非是否需要独立验证
-- [New context engineering challenges in late 2026](https://www.langchain.com/blog/context-engineering-challenges-late-2026)（Harrison Chase / LangChain，2026.11.02）——上下文工程="决定 agent 每步看到什么"；proactive agents（定时唤醒、自主发言决策）打破 reactive 假设：唤醒时上下文重建、长线程摘要时机、大对象卸载成为一等工程对象
+- [Are Harnesses Worth the Cost?](https://martinfowler.com/articles/are-harnesses-worth-the-cost.html)（Naresh Jain / Martin Fowler，2026.10.13）——harness 价值的条件性量化实证：前沿模型全程 harness 多花约 10.5 倍 token（约 6.6 倍成本）验收零增益；成本优化模型 3/10→10/10 且样本内比前沿模型便宜 33%；"executable attention"机制；作者假设"模型能力决定 sensor 运行时机而非是否需要独立验证"（单一服务、10 对运行、终门方案未实测）
+- [New context engineering challenges in late 2026](https://www.langchain.com/blog/context-engineering-challenges-late-2026)（Harrison Chase / LangChain，2026.11.02）——长线程摘要/大结果卸载/技能披露/工具检索/子代理隔离已是标准实践；proactive、always-on、goal-oriented agents 带来一组尚无通用解的新挑战：通知校准、记忆智能层、异步完成通知、目标跟踪、对齐防作弊、浏览器上下文
 
 ### 深度解读
 - [Engineering Rigor Doesn't Disappear — It Relocates: Four Years of AI Agentic Patterns](https://bits-bytes-nn.github.io/insights/agentic-ai/2026/04/05/evolution-of-ai-agentic-patterns-en.html)——从提示词到上下文到 Harness 的完整演进史
