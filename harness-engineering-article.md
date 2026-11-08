@@ -1138,6 +1138,8 @@ Harness 工程代表了软件工程师工作内容的真正演进：
 4. **可观测性**——构建揭示 Agent 行为模式的监控
 5. **迭代速度**——快速测试和优化 Harness 配置
 
+Addy Osmani 在《[Your coding agents made you a manager](https://x.com/addyosmani/status/2119332146485891501)》（2026.11）里给这个角色转变补了一层管理学表述：整天与编码代理打交道就是在做管理——选任务、写指令、委派、跟进、评估、决定发布。三个值得单独记下的观察：**编排税**——并行代理越过最初几个之后，跟进、切换与决策的注意力负担递增（作者个人经验：常跑 4-5 个后台代理，"有些天这个数量也太多了"），扩展的关键是让验证、目标条件和独立审查者接管监控，把人的注意力留给决策；**批准式审查（code ratification）**——测试全绿、命名合理就批准大 diff，不是 code review 而是代码背书，作者自述曾差点据此推上一个"给用户增加复杂度却收益甚微"的变更，需求与风险判断不能随任务一起被委派；**管理类比的边界**——管理代理的清晰 briefing 与反馈技巧可以借鉴管理实践，但激励、冲突、职业发展、长期信任的建立没有代理对应物，跑五个代理不等于会带五个人。这些是个人经验视角而非受控实证，引用时保留限定（评估框架反模式 11 的两种审查失衡表现与之互补）。
+
 ---
 
 ## 十二、未来展望
@@ -1400,3 +1402,4 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [The space of minds](https://karpathy.bearblog.dev/the-space-of-minds/)（Andrej Karpathy，2025）——智能空间中 LLM 的定位：优化压力（商业进化 vs 生物进化）决定渐近线；"对这种新型智能实体建立准确内部模型的人，更能预测它的行为边界"
 - [The State Of AI Harness Engineering 2026](https://marmelab.com/blog/2026/09/24/the-state-of-ai-harness-engineering-2026.html)（François Zaninotto / Marmelab，2026.09）——246 仓库 + 145 大型非 AI 项目对照 + 57 篇文献的领域普查：同一模型换 8 个 harness 成功率 68%→88%；63% 项目有指令文件但 145 个项目合计仅 14 hooks/4 subagents；60% 的 harness 既无 test 也无 eval；25% harness 提交带 AI 签名；ETH Zurich 机器生成 context files 负增益 +20% 成本；481 个 CLAUDE.md 仅 4.4% 安全规则有真实 control 背书；负结果集（reviewer agent -8pp、Microsoft >4 次交接必失败、预写权限规则少拦 20.1pp）与正结果（Vercel 砍 80% 工具成功率 80%→100%）；五条方法论（双向 guard 测试、按失败反向构建、脚本替代散文规则、agent 跑真应用、expiry condition 记录）
 - [Skill Issue: Harness Engineering for Coding Agents](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents)（Kyle / HumanLayer，2026.03.12）——harness engineering = context engineering 的子集（通过配置点管理上下文窗口）；sub-agent = context firewall（父会话只见派发提示词与最终结论，结论带 `filepath:line` 引用可回溯）；CLI 优先于 MCP（训练数据覆盖良好的功能直接用 CLI，省指令预算）；hooks 控制流 + back-pressure（成功静音失败啰嗦）；ETH Zurich 研究的正确读法——负增益主要来自机器生成/过度约束的 agentfile，与"精简 + 渐进披露"建议同向；"bias towards shipping"：只在真实失败后加配置，不预设理想配置
+- [Your coding agents made you a manager](https://x.com/addyosmani/status/2119332146485891501)（Addy Osmani，2026.11，X Article）——以工程管理视角讨论 Agent 委派：编排税（并行代理的注意力负担递增，个人经验观察）、批准式审查 code ratification（绿灯+命名合理≠需求与风险已被判断）、验证机制/纠正复利/无人值守五问（与库内 Verifiability/ratchet/stop conditions 互证）、管理类比的适用边界（激励/冲突/职业发展/信任建立无代理对应物）；主要是个人经验与方法建议，未提供编排税的受控量化证据。核验方式：X 原站经浏览器提取 + 英文镜像交叉核对

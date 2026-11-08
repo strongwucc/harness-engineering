@@ -3,7 +3,7 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.24
+**版本**: v1.25
 **更新日期**: 2026-11-08
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
@@ -119,6 +119,7 @@
 | [Trustworthy LLM Harnesses: A Measurement Framework](https://www.preprints.org/manuscript/202610.1366) | Preprints（2026.10，预印本未同行评审） | harness 信任性七维测量框架（correctness/quality/efficiency/reliability/robustness/safety/fairness），把"harness 好不好"从单一成功率升级为显式维度集 |
 | [Sustaining Long-Horizon Execution with LLM Agent Harnesses](https://openreview.net/forum?id=NS9fp7ZTWa) | OpenReview（2026.10.27） | 将 agent harnesses 组织为四个功能层，聚焦长时程执行的维持（此前综述多以组件集成或应用工作流组织）。注：摘要级核验——OpenReview 页面验证墙未能读取全文，分层细节待复核 |
 | [New context engineering challenges in late 2026](https://www.langchain.com/blog/context-engineering-challenges-late-2026) | Harrison Chase / LangChain（2026.11.02） | 在已有标准上下文工程实践（长线程摘要/大结果卸载/skills 渐进披露/tool search/subagents 隔离/bash 主工具）之上，proactive、always-on、goal-oriented agents 带来一组尚无通用解的新挑战：通知校准（proactive without being annoying）、记忆智能层（记什么/何时记）、异步完成通知（主 agent 在跑/已结束/等审批三态）、目标跟踪、对齐防作弊（"删光代码=没有 bug"）、浏览器上下文（通用 agent 的 bash） |
+| [Your coding agents made you a manager](https://x.com/addyosmani/status/2119332146485891501) | Addy Osmani（2026.11.08） | 工程管理视角的 Agent 委派：编排税（并行代理注意力负担递增——个人经验观察非定量规律）、code ratification（绿灯+命名合理≠需求与风险已被判断，为反模式 11 补质量侧表现）、验证机制/纠正复利/无人值守五问（与库内 Verifiability/ratchet/stop conditions 互证）、管理类比边界（激励/冲突/职业发展/信任建立无代理对应物）；未提供受控量化证据，引用保留个人经验限定 |
 
 ---
 
@@ -414,6 +415,7 @@ Agent 开始工作前就将其引向正确方向。指南靠模型遵循发挥�
 - [ ] Agent 的工具集经过精简（无冗余工具造成困惑）
 - [ ] 工作流有失败恢复路径（Agent 卡住时的升级策略）
 - [ ] 多 Agent 协作时有清晰的职责分工和通信协议
+- [ ] 并行代理较多时有注意力预算观察（待决事项、审查积压、人工协调负担是否随并发上升——编排税是个人经验观察非定量规律，按自身工作流观察后调整并发，参考 Osmani 2026.11）
 - [ ] 有自动化调度机制（定时触发或事件驱动，非纯手动启动——参考 Loop Engineering 的 Automations 原语）
 - [ ] 有跨会话状态持久化（进度文件/看板，Loop 中断后能从中断处继续——参考 Loop Engineering 的 State 原语）
 - [ ] 维护循环内容外部化为可配置文件（循环跑什么写成文件、运行时可优化，非硬编码在调度配置或每次手写——参考 Claude Code `loop.md`：Skills+State+Automations 三个原语交汇落点）
@@ -573,9 +575,9 @@ Agent 拥有完整的文件系统访问和命令执行权限，无任何操作�
 
 ### 反模式 11：审查瓶颈（Amdahl 陷阱）
 
-在生成端大量投入（更强的 Agent、更激进的自动化 Loop），却让人工审查保持手动的、串行的旧流程。Anthropic 内部数据显示，当 80%+ 的代码由 Claude 编写、人均产出增长 8 倍后，**整体吞吐量开始被人工审查环节卡住**——Agent 产出的代码堆积在审查队列里，生成端的加速被审查端的瓶颈完全吞噬（Amdahl's law）。
+在生成端大量投入（更强的 Agent、更激进的自动化 Loop），却让人工审查保持手动的、串行的旧流程。Anthropic 内部数据显示，当 80%+ 的代码由 Claude 编写、典型工程师每日合并代码行数约 8 倍增长后（数量指标），**整体吞吐量开始被人工审查环节卡住**——Agent 产出的代码堆积在审查队列里，生成端的加速被审查端的瓶颈完全吞噬（Amdahl's law）。审查失衡有**两种表现**：其一是"审查排队"（上述吞吐瓶颈）；其二是"审查变成批准"（code ratification，参考 Osmani 2026.11）——负荷过大时审查退化为走形式，测试全绿 + 命名合理就批准大 diff，需求、复杂度与风险实际未被判断。
 
-**正确做法**：把审查环节也纳入 Harness 设计——自动化 reviewer（maker/checker 分离）、结构化审查清单、回归 eval 自动门禁。投资比例应随生成端自动化程度同步向审查端倾斜，否则"让 Agent 写得更多"只是把拥堵从写代码挪到了等审查。
+**正确做法**：把审查环节也纳入 Harness 设计——自动化 reviewer（maker/checker 分离）、结构化审查清单、回归 eval 自动门禁。投资比例应随生成端自动化程度同步向审查端倾斜，否则"让 Agent 写得更多"只是把拥堵从写代码挪到了等审查。度量上吞吐指标须配对反向指标（合并 PR 数搭配 revert/返工率），防止单侧指标激励产出膨胀。
 
 ### 反模式 12：静态迁移
 
@@ -759,4 +761,5 @@ Level X（一句话总结）
 | 2026-10-30 | v1.21 | Codex 审查 P1 结构性改进轮：① D1/D2/D4/D7/D8/D9 六维五星标准增"必备/按需高级"分层注记（修复"研究能力全集化"——多 Agent 审查/记忆系统/自愈闭环/自动部署/回放/跨模型验证等改为按需高级并注明适用条件，Marmelab reviewer -8pp 为多 Agent 非硬条件的证据）；② 新增评分协议（N/A 不计中位数分母、未知按 1 星保守计入、安全红线：D5 1 星或反模式 6 无缓解时总评强制 Level 1、证据三态标注、跨维度重复计分注明主归属）；③ 新增评分校准示例三个（个人只读研究 Agent/小团队编码 Agent/生产支付对账 Agent——演示 N/A、计分陷阱与安全红线覆盖平均）；④ Rethinking 补 v4（2026.10）正结果边界：长时程游戏为自进化利好区（ARC-AGI-3 +80%/EdgeBench +11%），article §3.5/§12/参考资源、principles 来源表、guide §9 五处同步；⑤ article §12 源码解剖结论限定样本范围（11 系统实证 ≠ 全领域定律）；⑥ principles 增结构导航、README 增术语对照表 |
 | 2026-11-01 | v1.22 | 补 1 个权威来源（共 92 个），主题"多任务组织级 Harness + 事件驱动授权"：DeepSeek《Super-agent 设计探索》（2026.10，首个公开多任务/团队级设计：双层架构/事件驱动/存算分离/Watchdog）+ 开源原型 dsh-superagent-prototype（15K 源码+15K 测试，经源码级分析 + Codex 第二视角评审双重核实：单进程无 Watchdog/端侧 daemon，主动工作默认 observe 只记录不执行）。D2.2 新增 Inline & Spill 窗口当 Cache + 引用图链式召回（游标白名单）两项检查项、D5.2 新增 Mandate 可再验证授权对象检查项（含通知式撤权/批内混合两条限定）、D8 新增双层调度（消融数据）/人优先并发/两级事件过滤三项检查项并扩五星；新增反模式 17（批内授权继承）。article 新增 §5.23 Super-agent 案例、§7.7 事件驱动授权准入、参考资源 +1（含指南同步） |
 | 2026-11-08 | v1.23 | 补 5 个权威来源（共 97 个），主题"harness 价值的条件边界 + proactive 上下文 + 配置杠杆全景"：Are Harnesses Worth the Cost?（Naresh Jain/martinfowler——前沿模型全程 harness 约 10.5x token 零增益 vs 成本模型 3/10→10/10 且样本内省 33%，executable attention，sensor 时机假设）、Skill Issue（HumanLayer——sub-agent context firewall、CLI 优先经验建议、bias towards shipping、TB2 Opus 4.6 换 harness #33→#5）、Trustworthy LLM Harnesses（Preprints 2026.10——七维测量框架，预印本）、Sustaining Long-Horizon Execution（OpenReview 2026.10.27——四层功能分层，摘要级核验）、New context engineering challenges（Chase/LangChain 2026.11——proactive/always-on/goal-oriented agents 在已有实践之上带来一组无通用解新挑战：通知校准/记忆智能层/异步通知/目标跟踪/对齐防作弊/浏览器）。D1.1 新增工具暴露上下文效率检查项、D6 新增反馈节奏按实测基线选择检查项、D8 新增主动式 Agent 上下文策略检查项、D9.2 新增七维测量检查项；新增反模式 18（反馈时机与模型能力错配）。article 新增 §5.24 条件性实证案例、§6.3 CLI>MCP、§6.4 context firewall、§6.11 TB2 排名证据、§12 proactive 上下文工程小节、参考资源 +5；implementation-guide 全局原则新增"工具暴露按上下文效率取舍"（含指南同步）；README 数字同步。另：Agent Harness Engineering: A Survey（OpenReview q83ujTeMdE）与已收录 ETCLOVG Survey 同名无法区分、An Architectural Survey（Sgc3w5jF3z）增量有限且页面验证墙无法实质验证，按宁缺毋滥未纳入。**同日修订**：Codex 第二视角评审发现 Sol token 倍数误写（6.6x→约 10.5x，6.6x 实为成本倍数）、单项实验外推为通用档位规则、MCP 注入与 context firewall 缺实现限定、Chase 概括过度（摘要/卸载系其列出的已有实践），已逐项修正；既存 6.20 悬空引用改指 §7.7 |
-| 2026-11-08 | v1.24 | Codex 全库审查修复轮（19 项，逐项对照原始来源核实后修正）：① **四象限分类重建**——按 Böckeler 原文执行方式划分（computational/inferential），AGENTS.md/编码规范/Skills 从"确定性前馈"更正为**推断型前馈**，D1.1-D1.4 四小节重命名（推断型前馈/计算型反馈/推断型前馈-系统提示词/推断型反馈），D1.3 按需注记移至 D1.4 并重写五星（独立第二视角为等价证据，多 Agent 非硬条件）；② **评分协议修复**——Level 区间改互斥（<3 / ≥3且<4 / ≥4，偶数维度中位数取中间两值均值）；N/A 拆为检查项/维度两级；校准示例 A/B 补全 9 维评分与计算过程（可复算）；③ **来源归属更正**——Write/Select/Compress/Isolate 四策略更正为 LangChain《Context Engineering》（2025.07）分类并新增来源条目，Write 定义更正为"保存到窗口之外"（scratchpad/记忆/状态），article §3.2 表格、§3.2 三代叙事"单轮局限性"矛盾、D2.1 检查项同步；④ **事实口径修正**——Anthropic"人均产出 8 倍"更正为"每日合并代码行数约 8 倍（数量指标，原文提醒高估生产力）"+97% 补边界；OpenAI"人类审查者被取代"收窄为原文口径；article 开头"没人碰过编辑器"收窄；⑤ **来源表补链接**（四象限框架、Lethal Trifecta）+ 新增 LangChain《Context Engineering》条目，统一统计口径为表格条目数（100 条目）；⑥ D5 五星多用户治理改为条件必备；D2.3"0/10 缺失"表述反转修正；article 三处章节误引更正（八→十二、九→八原则四）。guide 同步：lint 示例脚本退出码处理、`.env` deny 补 OS 级边界说明、Bash 通配符规则按官方文档更正（`cmd *` 含裸命令、`cmd*` 前缀匹配、`:*` 等价）、Desktop 调度表补配置来源与核验日期、附录 A additionalContext 归位 hookSpecificOutput + SessionStart/SessionEnd matcher 分列（含指南同步 + README 同步） |
+| 2026-11-08 | v1.24 | Codex 全库审查修复轮（19 项，逐项对照原始来源核实后修正）：① **四象限分类重建**——按 Böckeler 原文执行方式划分（computational/inferential），AGENTS.md/编码规范/Skills 从"确定性前馈"更正为**推断型前馈**，D1.1-D1.4 四小节重命名（推断型前馈/计算型反馈/推断型前馈-系统提示词/推断型反馈），D1.3 按需观察提示移至 D1.4 并重写五星（独立第二视角为等价证据，多 Agent 非硬条件）；② **评分协议修复**——Level 区间改互斥（<3 / ≥3且<4 / ≥4，偶数维度中位数取中间两值均值）；N/A 拆为检查项/维度两级；校准示例 A/B 补全 9 维评分与计算过程（可复算）；③ **来源归属更正**——Write/Select/Compress/Isolate 四策略更正为 LangChain《Context Engineering》（2025.07）分类并新增来源条目，Write 定义更正为"保存到窗口之外"（scratchpad/记忆/状态），article §3.2 表格、§3.2 三代叙事"单轮局限性"矛盾、D2.1 检查项同步；④ **事实口径修正**——Anthropic"人均产出 8 倍"更正为"每日合并代码行数约 8 倍（数量指标，原文提醒高估生产力）"+97% 补边界；OpenAI"人类审查者被取代"收窄为原文口径；article 开头"没人碰过编辑器"收窄；⑤ **来源表补链接**（四象限框架、Lethal Trifecta）+ 新增 LangChain《Context Engineering》条目，统一统计口径为表格条目数（100 条目）；⑥ D5 五星多用户治理改为条件必备；D2.3"0/10 缺失"表述反转修正；article 三处章节误引更正（八→十二、九→八原则四）。guide 同步：lint 示例脚本退出码处理、`.env` deny 补 OS 级边界说明、Bash 通配符规则按官方文档更正（`cmd *` 含裸命令、`cmd*` 前缀匹配、`:*` 等价）、Desktop 调度表补配置来源与核验日期、附录 A additionalContext 归位 hookSpecificOutput + SessionStart/SessionEnd matcher 分列（含指南同步 + README 同步） |
+| 2026-11-08 | v1.25 | 部分收录 Addy Osmani《Your coding agents made you a manager》（X Article，2026.11.08，经 Codex 评估 + X 浏览器提取 + 英文镜像交叉核对）：参考资源深度解读 +1、来源表 +1（共 101 条目）；article §11 补"编排税 / code ratification / 管理类比边界"三观察段（个人经验视角限定）；D8 新增并行代理注意力预算观察检查项（按需，注明非定量规律）；反模式 11 补"审查排队 vs 审查变成批准"两种表现 + 吞吐指标配对反向指标（顺带修正该处遗留的"人均产出 8 倍"旧口径）。明确不新增案例小节、不新建反模式 19——与既有审查瓶颈/认知投降重叠，"两次纠正"等启发式未固化为硬规则（含指南无改动，README 同步） |

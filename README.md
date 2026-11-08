@@ -20,7 +20,7 @@ Agent Harness Engineering 的系统化中文资料，覆盖 Why / Measure / How 
 
 ### 评估框架（Measure）
 
-`harness-principles.md` — v1.24，基于 100 个权威来源条目的 9 维度评估框架（Fowler 四象限、上下文工程、架构约束、熵管理、安全防护、测试验证、CI/CD、工作流编排、透明度），每维度 1-5 星制，含 18 个反模式和标准化评估输出模板。
+`harness-principles.md` — v1.25，基于 101 个权威来源条目的 9 维度评估框架（Fowler 四象限、上下文工程、架构约束、熵管理、安全防护、测试验证、CI/CD、工作流编排、透明度），每维度 1-5 星制，含 18 个反模式和标准化评估输出模板。
 
 ### 实施指南（How）
 
@@ -55,7 +55,7 @@ Agent Harness Engineering 的系统化中文资料，覆盖 Why / Measure / How 
 
 ## 权威来源
 
-基于 100 个权威来源条目（以 `harness-principles.md` 权威来源表为准，口径为表格条目数），涵盖：
+基于 101 个权威来源条目（以 `harness-principles.md` 权威来源表为准，口径为表格条目数），涵盖：
 
 **学术论文**：RUCAIBox 系统综述（502 篇参考文献）、OpenReview 独立综述、CAR 框架、AHE 自动进化、Self-Harness 自愈闭环、SIA 权重联合优化、Harness-MU 多用户安全、Physical AI Harness、Categorical Architecture、Barbaste 83 页源码解剖等
 
