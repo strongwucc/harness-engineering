@@ -3,7 +3,7 @@
 > 基于权威来源的行业共识，用于评估 AI Agent 开发环境的成熟度。
 > 模型是商品，Harness 是护城河。—— 2026 行业共识
 
-**版本**: v1.22
+**版本**: v1.23
 **更新日期**: 2026-11-01
 **用途**: 审计任意项目的 Agent Harness 成熟度，输出评分 + 改进建议
 
@@ -11,7 +11,7 @@
 
 ## 结构导航
 
-> 本文件阅读顺序：**权威来源表**（证据底座，可跳过先看框架）→ **评估维度 D1-D9**（每维度含来源/原则/检查项/星级标准）→ **评分体系**（星级含义 + 成熟度等级 + 评分协议）→ **常见反模式 1-17** → **评估输出模板** → **更新日志**。
+> 本文件阅读顺序：**权威来源表**（证据底座，可跳过先看框架）→ **评估维度 D1-D9**（每维度含来源/原则/检查项/星级标准）→ **评分体系**（星级含义 + 成熟度等级 + 评分协议）→ **常见反模式 1-18** → **评估输出模板** → **更新日志**。
 >
 > 只想评估项目：直接跳 D1-D9 逐项打勾，再按评分协议汇总；只想了解反模式排查：跳反模式章节；跨文件找主题：见 README 文件导航。
 
@@ -113,6 +113,11 @@
 | [Animals vs. Ghosts](https://karpathy.bearblog.dev/animals-vs-ghosts/) | Andrej Karpathy（2025） | LLM 是统计模拟的"幽灵"而非动物智能，能力 jagged 是常态——人在回路与经验主义使用姿势的理论依据 |
 | [The space of minds](https://karpathy.bearblog.dev/the-space-of-minds/) | Andrej Karpathy（2025） | 优化压力（商业进化 vs 生物进化）决定 LLM 智能渐近线；建立准确内部模型者更能预测其行为边界 |
 | [Super-agent 设计探索](https://mp.weixin.qq.com/s/zoS7GlReWPhfCjENGxXCdg)（[原型 dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype)） | DeepSeek Harness 团队（2026.10） | 首个公开的多任务组织级 Harness：双层架构（Router/Worker）+ 事件驱动（两级过滤/订阅直通/Inline & Spill）+ Mandate 授权准入（Gate+Assessment+观察模式）；消融实验证明分工固化到系统层优于提示词临场分工（p95 29.5→15.7min，合成负载）；原型 15K 源码+15K 测试，单进程无 Watchdog、主动工作默认只记录不执行——引用需保留"初步、自报、合成负载"限定 |
+| [Are Harnesses Worth the Cost?](https://martinfowler.com/articles/are-harnesses-worth-the-cost.html) | Naresh Jain / martinfowler（2026.10.13） | harness 价值的条件性量化实证：前沿模型全程 harness 多花 6.6 倍 token 验收零增益；成本优化模型 3/10→10/10 且比前沿模型便宜 33%；"executable attention"机制；模型能力决定 sensor 运行时机而非是否需要独立验证 |
+| [Skill Issue: Harness Engineering for Coding Agents](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents) | HumanLayer（2026.03） | 配置杠杆全景：harness engineering ⊂ context engineering；sub-agent = context firewall；CLI 优先于 MCP（上下文效率）；back-pressure（成功静音失败啰嗦）；"bias towards shipping"——只在真实失败后加配置；TB2 上 Opus 4.6 换 harness #33→#5（模型过拟合自身 harness 的证据） |
+| [Trustworthy LLM Harnesses: A Measurement Framework](https://www.preprints.org/manuscript/202610.1366) | Preprints（2026.10） | harness 信任性七维测量框架（correctness/quality/efficiency/reliability/robustness/safety/fairness），把"harness 好不好"从单一成功率升级为显式维度集 |
+| [Sustaining Long-Horizon Execution with LLM Agent Harnesses](https://openreview.net/forum?id=NS9fp7ZTWa) | OpenReview（2026.10.27） | 将 agent harnesses 组织为四个功能层，聚焦长时程执行的维持（此前综述多以组件集成或应用工作流组织） |
+| [New context engineering challenges in late 2026](https://www.langchain.com/blog/context-engineering-challenges-late-2026) | Harrison Chase / LangChain（2026.11.02） | proactive agents（定时唤醒、自主发言决策）打破 reactive 假设——唤醒时上下文重建、长线程摘要时机、大对象卸载成为上下文工程的一等对象 |
 
 ---
 
@@ -136,6 +141,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 工作流路径有清晰说明（新功能 / Bug 修复各走什么流程）
 - [ ] 指南文件保持精简（pilot's checklist 而非 style guide），每条规则可追溯到一次真实失败（ratchet 心法——参考 Osmani Agent Harness Engineering）
 - [ ] 采用 AGENTS.md 作为跨工具互操作标准（一份文件多个工具可读，而非每个工具各写一份冗余指南——参考 Coding Tools 实证的 2853 仓库基线：Context Files 主导配置）
+- [ ] 工具暴露按上下文效率取舍（训练数据覆盖良好的 CLI 直接用而非 MCP server——MCP 工具描述注入系统提示词挤占指令预算；MCP 留给真正的新能力，且永不连接不信任的 server——参考 HumanLayer + Vercel 砍工具实证）
 
 **评估标准**：
 - 1 星：无任何项目级指南文件
@@ -363,6 +369,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] Harness 自身有双向 guard 测试（每条规则/hook 各测"该拦的拦住"与"该放行的放行"两类用例——只测拦截会让收紧永远安全、放松不可见，harness 漂向拦死一切；参考 Marmelab："单侧 eval 制造单侧优化"，codex-claude-code-config 63 用例测 12 个 guard）
 - [ ] 每个 control 有 expiry condition 与背后事故记录（一行注明该 hook/规则为哪次失败而存在；模型升级或架构变更后可安全判断去留，避免死重累积——参考 Marmelab 腐化治理与 OpenAI doc-gardening agent）
 - [ ] 验证环境满足"可练习"三条件（resettable 可重开尝试 / efficient 可大量尝试 / rewardable 有自动打分——三条件不满足时先补评价机制如 LLM-as-judge 或确定性 rubric 再谈优化；任务可验证性直接决定其自动化潜力，参考 Karpathy Verifiability）
+- [ ] Sensor 运行时机与模型能力匹配（前沿模型开发中不套全程 harness、仅保留独立终门验收；成本优化模型全程套用作为 executable attention——模型能力改变的是 sensor 何时运行，而非是否需要独立验证门，参考 Are Harnesses Worth the Cost?）
 
 **评估标准**：
 - 1 星：无测试基础设施
@@ -420,6 +427,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 多任务/事件驱动场景采用双层调度（Router/主会话只承接交互与分派、不直接执行任务；Worker/子会话上下文隔离并发，已归属 Thread 的后续事件直通对应 Worker 不经 Router 转发），分工固化到系统层而非靠提示词让模型临场决定——消融实验：中性提示词下模型 5 次运行 0 次调用 Subagent（p95 29.5min）vs 双层架构 p95 15.7min；直通省 Router 决定数 30%/token 37%（参考 DeepSeek Super-agent，合成负载限定）
 - [ ] 人的输入在并发调度中保留优先机会（人的 follow-up 唤醒可用超出常规上限的额外并发槽，不排在批量任务启动之后——参考 DeepSeek Super-agent 的 WorkerSlots；注意只是"额外机会"而非绝对不排队，超额槽被占时仍需等待）
 - [ ] 事件准入做两级过滤（确定性程序策略先筛——来源/群组/白名单等稳定判断固化为代码；LLM 语义策略兜底——用提示词开关或新增策略扩展），在调用模型前滤除大部分噪音（参考 DeepSeek Super-agent 的 Fast/Slow Path；事件驱动系统"高噪音、低触发率"，逐条调模型延迟与算力都不可承受）
+- [ ] 主动式 Agent 的上下文策略有显式设计（定时唤醒场景的唤醒时上下文重建、长线程摘要时机、大对象卸载、发言决策的上下文预算——proactive 打破 reactive 时代的隐含假设，参考 Chase《New context engineering challenges in late 2026》）
 
 **评估标准**：
 - 1 星：无工作流，Agent 自由发挥
@@ -450,6 +458,7 @@ Agent 开始工作前就将其引向正确方向。
 - [ ] 基准测试结果附带 Harness 配置说明（非仅报告模型名称和分数）
 - [ ] 评估采用 value-aware 视角（不只看 task success，同时报告成本、延迟、超时率、恢复质量——参考 QA→Task Completion Survey）
 - [ ] 评估产出可审计的 episode package（每次运行转为含复现日志/失败归因/确定性需求检查/结构化验证报告的证据包，而非仅一个补丁——参考 Runtime Substrate 的 H0–H3 阶梯与 trace-based 评估协议）
+- [ ] Harness 质量按显式维度集测量（correctness/quality/efficiency/reliability/robustness/safety/fairness 七维，而非单一 task success rate——参考 Trustworthy LLM Harnesses 测量框架）
 
 #### D9.3 Harness 可迁移性
 
@@ -596,6 +605,12 @@ Agent 拥有完整的文件系统访问和命令执行权限，无任何操作�
 
 **正确做法**：批量是调度优化，不是授权单位——逐条事件独立判定授权强度，被拒消息不得进入被接受事件的评估上下文（或显式降级为"仅背景、不构成授权"）；对混合发送者、明确请求加旁注的样本做对抗测试，检查最终工单范围与执行结果是否越权。配套认知：授权对象（Mandate）逐条可审计，是批内隔离的前提。
 
+### 反模式 18：反馈时机与模型能力错配（Sensor Timing Mismatch）
+
+把为弱模型设计的"开发全程 harness"无差别套用在能一次通过的前沿模型上：Naresh Jain 实测（2026.10）GPT-6 Sol 全程 harness 多花 6.6 倍 token、约 7 倍成本、3 倍时间，验收结果零差异——纯开销；反过来，把前沿模型的"裸跑 + 终门验收"直接搬给成本优化模型，10 次运行 7 次交付不可接受产物（3/10 基线）。错配的根源是把"harness 有没有用"（Binding Constraint Thesis 层面成立）与"harness 全程值不值"（条件性问题）混为一谈。
+
+**正确做法**：独立验收门恒在（"是否需要独立验证"不随模型能力变），sensor 运行节奏随模型能力调整（"何时运行"才随模型变）——强模型裸跑 + 终门，弱模型全程 executable attention；按实测基线通过率（而非模型宣传档位）选择节奏，任务或模型变化后复测收益。
+
 ---
 
 ## 评估输出模板
@@ -724,3 +739,4 @@ Level X（一句话总结）
 | 2026-10-30 | v1.20 | 外部审查修复轮（Codex 全库分析，5 个 P0 硬错误逐项对照原始来源核实后修正）：① 致命三要素第三项由"能修改状态"更正为"具备对外通信能力"（对照 Willison 原文——旧表述会漏掉纯外传攻击路径；article §7.1/§7.2、D5 原则行与 D5.1 检查项、guide §10、反模式 6 同步）；② guide §7 Hook 阻断说明更正为双路径（exit 2 是官方 Blocking error，与 exit 0+JSON deny 等效，修正正文与附录 A 的矛盾）；③ guide §7 "每次必中"限定为"匹配到即确定性拦截"并注明示例正则是演示非防线；④ guide §9 失败案例改入回归集、与 holdout 隔离（修复同节自相矛盾）；⑤ README 数据同步（22 案例/v1.19→v1.20 时点/91 来源/16 反模式）。另修 article §5.21 引用号（6.11→6.13）、§5.17 引用指向（→5.11）、§六/§八标题数字失实。P1/P2 结构性建议（D 维度五星分层、评分协议、校准案例）留待专项处理 |
 | 2026-10-30 | v1.21 | Codex 审查 P1 结构性改进轮：① D1/D2/D4/D7/D8/D9 六维五星标准增"必备/按需高级"分层注记（修复"研究能力全集化"——多 Agent 审查/记忆系统/自愈闭环/自动部署/回放/跨模型验证等改为按需高级并注明适用条件，Marmelab reviewer -8pp 为多 Agent 非硬条件的证据）；② 新增评分协议（N/A 不计中位数分母、未知按 1 星保守计入、安全红线：D5 1 星或反模式 6 无缓解时总评强制 Level 1、证据三态标注、跨维度重复计分注明主归属）；③ 新增评分校准示例三个（个人只读研究 Agent/小团队编码 Agent/生产支付对账 Agent——演示 N/A、计分陷阱与安全红线覆盖平均）；④ Rethinking 补 v4（2026.10）正结果边界：长时程游戏为自进化利好区（ARC-AGI-3 +80%/EdgeBench +11%），article §3.5/§12/参考资源、principles 来源表、guide §9 五处同步；⑤ article §12 源码解剖结论限定样本范围（11 系统实证 ≠ 全领域定律）；⑥ principles 增结构导航、README 增术语对照表 |
 | 2026-11-01 | v1.22 | 补 1 个权威来源（共 92 个），主题"多任务组织级 Harness + 事件驱动授权"：DeepSeek《Super-agent 设计探索》（2026.10，首个公开多任务/团队级设计：双层架构/事件驱动/存算分离/Watchdog）+ 开源原型 dsh-superagent-prototype（15K 源码+15K 测试，经源码级分析 + Codex 第二视角评审双重核实：单进程无 Watchdog/端侧 daemon，主动工作默认 observe 只记录不执行）。D2.2 新增 Inline & Spill 窗口当 Cache + 引用图链式召回（游标白名单）两项检查项、D5.2 新增 Mandate 可再验证授权对象检查项（含通知式撤权/批内混合两条限定）、D8 新增双层调度（消融数据）/人优先并发/两级事件过滤三项检查项并扩五星；新增反模式 17（批内授权继承）。article 新增 §5.23 Super-agent 案例、§7.7 事件驱动授权准入、参考资源 +1（含指南同步） |
+| 2026-11-08 | v1.23 | 补 5 个权威来源（共 97 个），主题"harness 价值的条件边界 + proactive 上下文 + 配置杠杆全景"：Are Harnesses Worth the Cost?（Naresh Jain/martinfowler——前沿模型全程 harness 6.6x token 零增益 vs 成本模型 3/10→10/10 且省 33%，executable attention，sensor 时机随模型能力）、Skill Issue（HumanLayer——sub-agent context firewall、CLI>MCP 上下文效率、bias towards shipping、TB2 Opus 4.6 换 harness #33→#5）、Trustworthy LLM Harnesses（Preprints 2026.10——七维测量框架）、Sustaining Long-Horizon Execution（OpenReview 2026.10.27——四层功能分层）、New context engineering challenges（Chase/LangChain 2026.11——proactive agents 打破 reactive 假设）。D1.1 新增工具暴露上下文效率检查项、D6 新增 sensor 时机与模型能力匹配检查项、D8 新增主动式 Agent 上下文策略检查项、D9.2 新增七维测量检查项；新增反模式 18（反馈时机与模型能力错配）。article 新增 §5.24 条件性实证案例、§6.3 CLI>MCP、§6.4 context firewall、§6.11 模型过拟合自身 harness 证据、§12 proactive 上下文工程小节、参考资源 +5；implementation-guide 全局原则新增"工具暴露按上下文效率取舍"（含指南同步）。另：Agent Harness Engineering: A Survey（OpenReview q83ujTeMdE）与已收录 ETCLOVG Survey 同名无法区分、An Architectural Survey（Sgc3w5jF3z）增量有限且页面验证墙无法实质验证，按宁缺毋滥未纳入 |

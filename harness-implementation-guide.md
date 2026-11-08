@@ -522,6 +522,10 @@ each and resolve the thread. If green and quiet, say so in one line.
 
 这两条和 §9 的可剥离是两面：可剥离管"该删什么"，状态可恢复管"该留什么、怎么留才接得住下一次启动"。
 
+### 工具暴露按上下文效率取舍
+
+工具不是越多越好。把训练数据覆盖良好的功能（GitHub、Docker、数据库）做成 MCP server，工具描述会注入系统提示词挤占指令预算，而 CLAUDE.md 里几行 CLI 用法示例即可替代——**模型已经熟悉的 CLI 优先于 MCP，MCP 留给真正的新能力**；不信任的 server 永远不连（工具描述是现成的提示词注入向量）。配套实践是 sub-agent 当 context firewall：父会话只保留派发提示词与带引用（`filepath:line`）的最终结论，中间工具调用不进父上下文。先给能力、按真实使用裁剪——"just in case"装的几十个 skill/MCP 是负资产。（参考 HumanLayer + Vercel 砍工具实证）
+
 ---
 
 ## 附录 A：Hooks 事件与 JSON 协议速查
