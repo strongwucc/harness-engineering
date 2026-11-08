@@ -110,15 +110,17 @@ FILE=$(jq -r '.tool_input.file_path // empty')
 [ -z "$FILE" ] && exit 0
 
 case "$FILE" in
-  *.php)            ./vendor/bin/pint "$FILE" ;;
-  *.ts|*.vue|*.js)  npx eslint --fix "$FILE" ;;
+  *.php)            ./vendor/bin/pint "$FILE" || { echo "pint 失败/存在剩余报错" >&2; exit 2; } ;;
+  *.ts|*.vue|*.js)  npx eslint --fix "$FILE" || { echo "eslint 修复后仍有报错" >&2; exit 2; } ;;
 esac
 
-exit 0   # 退出码 0 = 不阻塞；auto-fix 已就地改好文件
-# 若要把"剩余报错"回灌给 Agent 让它继续修，用 exit 2 + stderr（见附录 A）
+exit 0   # 退出码 0 = 不阻塞；auto-fix 已就地改好文件且无剩余报错
+# 退出码 2 + stderr = 把剩余报错回灌给 Agent 让它继续修（见附录 A）
 ```
 
-设计检查时记住一条原则：**success is silent, failures are verbose（成功静默，失败冗长）**。检查通过时 Agent 不需要听到任何声音；检查失败时把错误原文塞回循环让它自己改。常态零成本，出错直接可执行。
+设计检查时记住两条原则：
+- **success is silent, failures are verbose（成功静默，失败冗长）**。检查通过时 Agent 不需要听到任何声音；检查失败时把错误原文塞回循环让它自己改。常态零成本，出错直接可执行。
+- **别吞掉失败状态**。示例用 `|| { ...; exit 2; }` 捕获工具失败/剩余报错——无条件 `exit 0` 会让"工具不存在、执行失败、仍有错误"都伪装成成功。另注意 PostToolUse 在编辑落盘之后触发，只能报告问题让 Agent 修，**不能撤销已经执行的编辑**；高风险文件应在 PreToolUse 层拦截。
 
 ---
 
@@ -173,8 +175,8 @@ Vercel 删掉 80% 工具后 Agent 反而更快更可靠——每个工具都是�
       "Edit(./app/**)"
     ],
     "ask": [
-      "Bash(git push*)",
-      "Bash(composer require*)",
+      "Bash(git push:*)",
+      "Bash(composer require:*)",
       "Write(./composer.json)",
       "Write(./package.json)"
     ],
@@ -183,18 +185,20 @@ Vercel 删掉 80% 工具后 Agent 反而更快更可靠——每个工具都是�
       "Bash(rm -rf ~*)",
       "Read(./.env)",
       "Edit(./database/migrations/*)",
-      "Bash(php artisan migrate*)"
+      "Bash(php artisan migrate:*)"
     ]
   }
 }
 ```
 
-**规则语法要点**：
-- `Bash(php artisan test*)` —— 前缀匹配，带不带参数都放行（最常用）
-- `Bash(git push:*)` —— `:*` 形式匹配 `git push` 及其子命令；`Bash(cmd *)`（空格+`*`）则要求命令必须带参数
+**规则语法要点**（按官方 permissions 文档，2026-11-08 核验）：
+- `Bash(php artisan test *)` 或等价的 `Bash(php artisan test:*)` —— 尾部通配，匹配 `test` 及任意参数，**也匹配裸命令** `php artisan test`
+- `Bash(php artisan test*)` —— 无空格前缀匹配，**会误伤其他同前缀命令**（如 `testdb`），写规则用带空格或 `:*` 形式
+- `Bash(cmd)`（无 `*`）—— 精确匹配单条命令
 - `Read(./app/**)` —— gitignore 风格路径，`**` 递归
 - `mcp__github__create_issue` —— MCP 工具名用双下划线
 - `&&`/`||` 连接的复合命令，**每段都要单独匹配**才放行
+- **边界**：deny/ask 匹配的是"Claude 写出的命令文本"，官方明确它**不是程序周围的安全边界**（换一种调用形式即可绕过）——文件工具的 `Read(./.env)` deny 只约束 Read 工具，Bash 等进程能否读 `.env` 由 OS 级 sandbox 决定，两件事不能互相替代
 
 ### 6. Maker / Checker：Subagent 分离
 
@@ -350,7 +354,7 @@ AI 写得越多，代码库和 Harness 都会乱：命名分化、文档脱节�
 **审计 6 步**（针对 `/switch` 在 GLM5.2 / DeepSeek V4 间切换）：
 
 1. **冻结基线**：pin 当前版本，跑一遍回归型 eval 集记指标。
-2. **先审 system prompt / CLAUDE.md**：AHE 消融证明收益来自工具/中间件/长期记忆，**而非系统提示词**——纠正性条款是最可能的死重，优先审。
+2. **先审 system prompt / CLAUDE.md**：AHE 消融（其实验设置下）收益主要来自工具/中间件/长期记忆而非系统提示词——把纠正性条款列为优先怀疑对象，但这是候选顺序不是普遍结论，删改仍须走第 4 步的逐项消融 + holdout 回归验证。
 3. **标 core / profile**：core（换任何模型都生效）留在 `settings.json`；profile（只服务 GLM5.2 或 DeepSeek V4 口味）隔离到 `/switch` 层。
 4. **跨模型 holdout 验证**：删/改一项 → 在 holdout 任务集上跑，**两个模型都跑**。单模型上"没退化"可能是过拟合——Better Harness 就是跨 Sonnet / GLM-5 验证泛化的。
 5. **ratchet 触发**：只有"强模型让某约束变多余"才删，删时记录它补的是什么旧缺陷。
@@ -397,7 +401,7 @@ Claude Code 场景的落地把"关联"做轻：session id 写进 PR 描述或 co
 Simon Willison 的框架很好记：**Agent 最多同时拥有下面三样里的两个**——① 处理不可信输入（外部网页、用户上传）② 访问敏感数据（数据库、密钥、用户隐私）③ 具备对外通信能力（发邮件、发起 HTTP/API 请求、创建公开 PR——攻击面是攻击者可借此外传数据）。三个都要 → 强制人类审批。
 
 落地（全是 §5 和 §7 的机制）：
-- **Permissions deny/ask**：`.env`、secrets/、生产 migration、`rm -rf` 全进 deny；`git push`、装依赖进 ask
+- **Permissions deny/ask**：`.env`、secrets/、生产 migration、`rm -rf` 全进 deny；`git push`、装依赖进 ask。**注意覆盖范围**：文件工具的 deny 只约束 Read/Edit 工具——Bash 等子进程能否读到 `.env` 由 OS 级 sandbox（文件系统隔离）决定，权限规则与 sandbox 是两层，需分别配置并各自实测（"文件工具拒绝访问"和"进程无法访问"分别验收）；凭据本身按最小化原则只放必须暴露给 Agent 的部分
 - **Policy as Code = PreToolUse hook**：§7 例 2 那种确定性拦截，不靠提示词
 - **guard 双向测试**：每条拦截规则写两类用例——该拦的必须拦、该放的必须放（只测拦截会让收紧永远安全、放松不可见，规则慢慢漂成拦死一切；普查显示 60% 的 harness 从不测自己）
 - **每个 hook 记来历**：一行注明这条规则为哪次事故而存在、什么条件下可删（模型升级后据此安全清理死重，别让为旧模型弱点打的补丁永远堆着）
@@ -442,8 +446,10 @@ Simon Willison 的框架很好记：**Agent 最多同时拥有下面三样里的
 | 需机器/会话开机 | 否/否 | 是/否 | 是/**是** |
 | 跨重启持久 | 是 | 是 | 仅 `--resume` 恢复未过期 |
 | 本地文件 | 否（fresh clone） | 是 | 是 |
-| MCP / 权限 | 每任务配 | 每任务配 | **继承会话** |
-| 最小间隔 | 1 小时 | 1 分钟 | 1 分钟 |
+| MCP / 权限 | 每任务配（配置文件） | 配置文件任务/连接器来源不同（前者每任务配，后者用会话设置） | **继承会话** |
+| 最小间隔 | 1 小时 | 配置文件任务 1 分钟／表单任务 1 小时 | 1 分钟 |
+
+> 调度对照为简化版（官方 scheduled-tasks 文档区分配置文件与连接器两类来源，最小间隔有条件区别）；2026-11-08 核验，具体以官方文档与所用版本为准——上表用于选型方向判断，写自动化前逐项回查。
 
 **选型**：不依赖你的机器可靠跑 → Cloud Routines；要本地文件但不依赖会话 → Desktop；会话内快速轮询 → `/loop`。要对事件**实时反应而非轮询**（CI 直接推进会话）→ Channels。
 
@@ -530,11 +536,12 @@ each and resolve the thread. If green and quiet, say so in one line.
 
 ## 附录 A：Hooks 事件与 JSON 协议速查
 
-**常用事件**（v2.1.200+，节选；标 ✓ 的能用退出码 2 或 `decision` 阻断）：
+**常用事件**（v2.1.200+，节选；2026-11-08 对照官方 hooks 文档核验；标 ✓ 的能用退出码 2 或 `decision` 阻断）：
 
 | 事件 | matcher | 阻断 |
 |------|---------|------|
-| `SessionStart` / `SessionEnd` | startup/resume/clear/compact | 否 |
+| `SessionStart` | startup/resume/clear | 否 |
+| `SessionEnd` | 见官方文档（与 SessionStart 取值不同） | 否 |
 | `UserPromptSubmit` ✓ | 无 | 是 |
 | `PreToolUse` ✓ | 工具名 | 是 |
 | `PostToolUse` | 工具名 | 否 |
@@ -554,12 +561,12 @@ each and resolve the thread. If green and quiet, say so in one line.
   "stopReason": "给用户看的原因",
   "systemMessage": "警告",             // 展示给用户
   "suppressOutput": true,              // 隐藏 hook 自己的 stdout
-  "additionalContext": "注入上下文",    // 回灌给 Agent
-  "hookSpecificOutput": {              // 事件专用决策
+  "hookSpecificOutput": {              // 事件专用决策（事件相关字段都在这层内）
     "hookEventName": "PreToolUse",
     "permissionDecision": "allow|deny|ask",
     "permissionDecisionReason": "为什么",
-    "updatedInput": {}                 // 改写工具入参
+    "updatedInput": {},                // 改写工具入参
+    "additionalContext": "注入上下文"   // 回灌给 Agent（字段位于 hookSpecificOutput 内，按事件生效）
   }
 }
 ```

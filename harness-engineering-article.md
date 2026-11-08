@@ -4,7 +4,7 @@
 
 ## 一、从一个反直觉的事实说起
 
-2026 年 2 月，OpenAI 披露了一组令人震惊的数据：一支 3-7 人的工程团队，用 5 个月时间构建了一个超过 **100 万行代码** 的生产级应用。其中 **零行代码由人类手写**，每一行都由 AI Agent 生成。产品拥有内部日常用户和外部 Alpha 测试者，能自主部署、自主修复 Bug——整个过程没有人类碰过代码编辑器。
+2026 年 2 月，OpenAI 披露了一组令人震惊的数据：一支 3-7 人的工程团队，用 5 个月时间构建了一个超过 **100 万行代码** 的应用（内部日用 + 外部 alpha 测试）。其中 **零行代码由人类手写**，每一行都由 AI Agent 生成，产品能自主部署、自主修复 Bug——但"没人碰过编辑器"并未被原文声称，人类的角色是设计环境、审查关键节点与承担 QA 容量约束。
 
 工程师们做了什么？他们设计了 **Harness**——约束、反馈循环、文档结构、依赖规则、生命周期管理。Agent 写代码，人类设计让 Agent 可靠运行的环境。
 
@@ -58,7 +58,7 @@ Harness 是"Agent 中除模型之外的一切"。它是一个系统的设计与�
 - **Harness 是操作系统**——策划上下文、处理"启动序列"（提示词、钩子）、提供标准驱动（工具处理）
 - **Agent 是应用程序**——跑在 OS 之上的具体用户逻辑
 
-这个类比点出了 Harness 与 Agent 框架的关键区别：框架只提供建筑块（工具、循环实现），Harness **batteries included**——自带提示词预设、工具调用的 opinionated 处理、生命周期钩子、开箱即用的规划/文件系统/子 Agent 能力。Claude Code、Codex 这类 CLI 正是这种"通用 Harness"的雏形。把它理解成 OS 而非缰绳，才能解释为什么 Harness 会越做越厚——第八章的知识引擎、第十二章的评估工程，本质上都是"操作系统能力"的扩张。
+这个类比点出了 Harness 与 Agent 框架的关键区别：框架只提供建筑块（工具、循环实现），Harness **batteries included**——自带提示词预设、工具调用的 opinionated 处理、生命周期钩子、开箱即用的规划/文件系统/子 Agent 能力。Claude Code、Codex 这类 CLI 正是这种"通用 Harness"的雏形。把它理解成 OS 而非缰绳，才能解释为什么 Harness 会越做越厚——第十二章的知识引擎、评估工程，本质上都是"操作系统能力"的扩张。
 
 ---
 
@@ -91,24 +91,26 @@ Andrew Ng 的关键发现至今仍有指导意义：**用 Agentic 工作流包�
 
 术语的另一个源头更早：Andrej Karpathy 在 2025 年上半年就提出"提示词工程是错误的名称，上下文工程才是——为任务把上下文窗口填入正确信息的精细艺术"。他在 YC 演讲与后续访谈中给出了更系统的定位：**上下文窗口是"你对解释器的杠杆"，LLM 就是解释这份上下文的解释器**——编程对象从代码变成了 context（prompt、工具、示例、记忆、指令）。在其 2025 年度回顾中，他把"做上下文工程"列为 Cursor 类 LLM 应用层的四大职责之首，其余三项是编排多 LLM 调用 DAG、人机回路 GUI、自主度滑杆。
 
-Anthropic 将上下文策划分为四大策略：
+LangChain 在 2025 年 7 月的《Context Engineering》中将上下文工程策略归纳为四类（Write/Select/Compress/Isolate，本库早期版本误归于 Anthropic，2026-11-08 更正）：
 
 | 策略 | 做什么 | 类比 |
 |------|--------|------|
-| **Write** | 编写清晰、结构化的系统提示词 | 写一份好的产品说明书 |
-| **Select** | 只拉取任务相关的上下文，而非整个知识库 | 查阅相关章节，而不是通读全书 |
+| **Write** | 把上下文**保存到窗口之外**——scratchpad 便签、跨会话记忆、状态持久化 | 把重要事项记到笔记本上，而不是都塞进脑子 |
+| **Select** | 只拉取任务相关的上下文进窗口，而非整个知识库 | 查阅相关章节，而不是通读全书 |
 | **Compress** | 将 20 轮对话压缩为摘要 | 做读书笔记 |
-| **Isolate** | 将子任务委托给独立的子 Agent | 请专门的顾问处理专业问题 |
+| **Isolate** | 将子任务委托给独立的子 Agent / 沙箱 | 请专门的顾问处理专业问题 |
+
+（编写清晰的结构化系统提示词属于上下文**准备**实践，与四策略正交，可与其叠加使用。）
 
 Google ADK 实现了具体的"上下文栈"架构：将上下文窗口分为**稳定前缀**（系统提示词、Agent 身份、工具定义）和**可变后缀**（最新用户输入、工具输出），并通过 KV-cache 优化大幅降低成本——Claude Sonnet 上一次缓存命中可降低 **10 倍**成本。
 
 Manus 团队重写了四次 Agent 框架后得出结论：**KV-cache 命中率是生产 Agent "唯一最重要的指标"。**
 
-**但上下文工程也撞到了墙。** 三个根本问题无法通过上下文解决：
+**但上下文工程也撞到了墙。** 它能管理跨轮信息（Write/Compress/Isolate 本就处理多轮累积），真正的天花板在别处——三个它无法解决的问题：
 
-1. **单轮局限性**：上下文工程关注的是"这次 API 调用放什么"，但 Agent 是多轮链式决策，第 15 轮需要第 3 轮已被压缩掉的工具结果怎么办？
+1. **权限与执行**：上下文工程解决"放什么进来"，但不解决"谁能执行什么、副作用如何授权"——权限、审批、预算是独立的系统层问题
 2. **没有错误恢复**：工具调用失败、模型幻觉、成本飙升——上下文再完美，运行时异常需要独立的机制处理
-3. **安全盲区**：上下文工程解决"放什么进来"，但不解决"如何防止坏事发生"
+3. **验证缺位**：上下文工程不回答"产出是否正确"——验证需要独立的传感器与评估层
 
 **死亡原因：** 即使完美的上下文，当消费它的系统设计糟糕时也会失败。上下文是必要条件，不是充分条件。严谨需要再次搬家。
 
@@ -311,17 +313,17 @@ Loop Engineering 之后，X 上又造出了新词 "graph engineering"。LangChai
 
 ### 4.1 Fowler 的四象限框架
 
-Martin Fowler 和 Birgitta Böckeler（ThoughtWorks 首席技术顾问）将 Harness 组织为一个清晰的 2x2 框架：
+Martin Fowler 和 Birgitta Böckeler（ThoughtWorks 首席技术顾问）将 Harness 组织为一个 2x2 框架——两个维度分别是**方向**（前馈/反馈）与**执行方式**（计算型/推断型）：
 
 |  | **前馈（预防引导）** | **反馈（事后纠正）** |
 |---|---|---|
-| **确定性** | **指南**：AGENTS.md、.cursorrules、编码规范 | **计算型**：编译器、类型检查、Linter |
-| **非确定性** | **系统提示词**：角色定义、行为约束、少样本示例 | **推断型**：LLM-as-judge、语义代码审查 |
+| **计算型**（CPU 确定性执行） | **工具化引导**：语言服务器、CLI、脚本、codemod | **机械性检查**：编译器、类型检查、Linter、结构测试 |
+| **推断型**（模型语义遵循） | **指南与提示词**：AGENTS.md、编码规范、Skills、系统提示词 | **审查**：LLM-as-judge、语义代码审查、人工审查 |
 
-- **左上角——指南**：在 Agent 开始之前就将其引向正确方向。把"使用 Vanilla JS 而非 React"写进 AGENTS.md，Agent 生成代码时会参考。成本几乎为零，但没有强制力——Agent 可以忽略它。
-- **右上角——计算型**：即使指南被忽略，也能机械性地捕获错误。编译错误、Linter 警告、类型检查、静态分析。Agent 写了坏代码，拿到编译错误后自动修正。
-- **左下角——系统提示词**：处理确定性规则无法捕获的细微之处。"对用户礼貌"、"不确定时请确认"、"安全敏感操作必须获得审批"。
-- **右下角——推断型**：捕获"能编译但语义错误"的代码。让另一个 LLM 审查代码或评估输出质量。Anthropic 的 Evaluator Agent 就在这个象限。
+- **计算型前馈——工具化引导**：用确定性工具在 Agent 开始前就改变其行为条件。codemod 直接改写代码，脚本脚手架直接生成正确结构——不依赖模型"听话"。Böckeler 的例子是带 OpenRewrite 配方的工具。
+- **推断型前馈——指南与提示词**：AGENTS.md、编码规范靠模型遵循发挥作用。关键认知：**文件被确定性注入不等于指令被确定性执行**——这是推断型控制，成本几乎为零但没有强制力，Agent 可以忽略它。
+- **计算型反馈——机械性检查**：即使指南被忽略，也能机械性地捕获错误。编译错误、Linter 警告、类型检查、结构测试。Agent 写了坏代码，拿到编译错误后自动修正。
+- **推断型反馈——审查**：捕获"能编译但语义错误"的代码。让另一个 LLM 审查代码或评估输出质量。Anthropic 的 Evaluator Agent 就在这个象限。
 
 **生产级 Harness 需要四象限全部覆盖——纵深防御。**
 
@@ -412,7 +414,7 @@ CAR 框架（4.2）按"职责"把 Harness 分成三层（Control/Agency/Runtime�
 
 **运行时基座与 H0–H3 阶梯**（arXiv，2026.05）把视角再推进一步——软件工程能力不在模型里，而涌现自一个 **model-harness-environment 系统**，harness 是其中的"运行时基座（runtime substrate）"。它列出 11 项组件责任（任务规约、上下文选择、工具访问、项目记忆、任务状态、可观测性、失败归因、验证、权限、熵审计、干预记录），并提出一条 **H0–H3 四级阶梯**：等级越高，暴露给 Agent 的运行时支持越完整——低等级只产出最终补丁，高等级额外产出复现日志、失败归因、确定性需求检查和结构化验证报告。配套的是一个 **trace-based 评估协议**：把每次运行转成一个可审计的 **episode package**，其"证据结构"随 harness 等级系统化变化（详见十二章"评估工程"）。
 
-**模型–Harness 共演化**（Preprints，2026.06，结构/匹配/动态三层分析）给出了一个解释"为什么 Harness 不会随模型变强而消失"的理论：**例行能力支撑（routine capability-bearing support）会随模型进步迁移进权重，而约束性治理（constraint-bearing governance）必须留在外部**。换言之，"提醒模型补全最终答案"这类 scaffold 会被模型吸收，但"PII 脱敏、权限审批、预算上限"这类约束不会——后者正是 Harness 永久存在的理由。这也为第九章的"可剥离性"划了精确边界：可剥离的是例行支撑，不可剥离的是治理约束。
+**模型–Harness 共演化**（Preprints，2026.06，结构/匹配/动态三层分析）给出了一个解释"为什么 Harness 不会随模型变强而消失"的理论：**例行能力支撑（routine capability-bearing support）会随模型进步迁移进权重，而约束性治理（constraint-bearing governance）必须留在外部**。换言之，"提醒模型补全最终答案"这类 scaffold 会被模型吸收，但"PII 脱敏、权限审批、预算上限"这类约束不会——后者正是 Harness 永久存在的理由。这也为第八章原则四的"可剥离性"划了精确边界：可剥离的是例行支撑，不可剥离的是治理约束。
 
 至此，第四章给了多种互补的 Harness 解剖视角：**Fowler 四象限**（按约束类型）、**CAR 三层**（按职责分层）、**六/七组件**（按运行时职责）、**六元组形式化 + H0–H3 阶梯**（按完整度/成熟度）。诊断 Harness 缺口时交叉使用最有效——四象限告诉你"缺哪类约束"，CAR 告诉你"哪一层不完整"，六/七组件告诉你"哪个运行时职责没实现"，而六元组完整性矩阵和 H0–H3 阶梯告诉你"离生产级还差哪几格"。
 
@@ -426,7 +428,7 @@ OpenAI 团队的做法可以浓缩为三件事：
 
 1. **将仓库知识系统化**：团队发现 Agent 总犯同样的错误。为什么？架构决策只存在于 Slack 中，设计原则只存在于资深开发者的脑中——对 Agent 不可见。他们把每条原则和决策都写成仓库内的 Markdown 和代码。**"Agent 看不见的知识不存在。"**
 
-2. **机械性强制**：光写文档不够。"请使用这个模式"写在文档里会被忽略。他们构建了自定义 Linter 和结构性测试来强制执行架构规则。Agent 自动修复代码以通过 Linter。人类审查者被机械性强制取代。
+2. **机械性强制**：光写文档不够。"请使用这个模式"写在文档里会被忽略。他们构建了自定义 Linter 和结构性测试来强制执行架构规则，Agent 自动修复代码以通过 Linter。原文的口径是：人类**可以**审查 PR 但不强制，大部分代码审查逐步转向 Agent——而人类 QA 容量成为新的约束。
 
 3. **渐进式披露**：一开始他们尝试一次性注入大量文档。结果：Agent 迷失了。解决方案是给 Agent 一张地图，让它自己找到需要的东西。"给 Codex 一张地图，而不是一本 1000 页的手册。"
 
@@ -581,9 +583,9 @@ LangChain 对 1,300+ 专业人士的调查揭示了 Agent 工程在 2026 年的�
 2026 年 4 月，Anthropic 在《When AI builds itself》中披露了一组内部生产数据，为"Harness 是护城河"提供了来自模型厂商自身的一手证据：
 
 - **80% 以上**合并到主线的代码由 Claude 编写
-- 工程师人均日合并量从 2024 年到 2026 年 Q2 **增长 8 倍**
+- 典型工程师**每日合并代码行数**从 2024 年到 2026 年 Q2 增长约 8 倍（行数是数量指标，Anthropic 原文明确提醒它几乎肯定高估真实生产力增益）
 - 自动化的 Claude reviewer 能回溯抓出 claude.ai 过去 **1/3 的生产事故 Bug**
-- Claude 自主研究累计运行 800 小时，恢复了 **97%** 的 weak-to-strong supervisor gap（人类一周仅能恢复 23%）
+- Claude 自主研究累计运行 800 小时，恢复了 **97%** 的 weak-to-strong supervisor gap（人类一周仅能恢复 23%；注意该研究未干净迁移至生产规模模型，且问题与评分标准由人类设定）
 
 这些数字背后藏着一个被多数团队忽视的 Harness 设计新论点——**人类审查正在成为新的瓶颈**（Amdahl's law）：当生成端被 Agent 大幅加速后，整体吞吐量开始被串行的人工审查环节卡住。这意味着下一轮 Harness 投资的重点不再是"让 Agent 写得更多"，而是"让审查环节也自动化、可扩展"——否则 Agent 产出的代码会堆积在审查队列里，吞吐提升到此为止。
 
@@ -882,7 +884,7 @@ Addy Osmani（Google）在《Agent Harness Engineering》中把 Harness 工程�
 
 与 ratchet 配套的是 **hooks 作为执行层**的原则。Osmani 引用 HumanLayer 的总结：**"success is silent, failures are verbose"（成功静默，失败冗长）**——typecheck 通过时 Agent 听不到任何声音，失败时错误文本注入循环让它自我纠正。这让反馈循环在常态下几乎零成本，在出错时直接可执行。
 
-这与 Mitchell Hashimoto 的原始定义（3.3 节）一脉相承：**"每当 Agent 犯错，就改变系统让这个错误在结构上不可能再次发生。"** ratchet 是这句话的工程化操作手册。Osmani 还点出一个常被忽视的事实：**Harness 不会收缩，只会移动**——模型变强后，旧失败模式（如 Sonnet 4.5 的"上下文焦虑"）消失了，但天花板也随之抬高，新的失败模式需要新的 Harness 组件。这正是第九章"可剥离性"原则的另一面。
+这与 Mitchell Hashimoto 的原始定义（3.3 节）一脉相承：**"每当 Agent 犯错，就改变系统让这个错误在结构上不可能再次发生。"** ratchet 是这句话的工程化操作手册。Osmani 还点出一个常被忽视的事实：**Harness 不会收缩，只会移动**——模型变强后，旧失败模式（如 Sonnet 4.5 的"上下文焦虑"）消失了，但天花板也随之抬高，新的失败模式需要新的 Harness 组件。这正是第八章原则四"可剥离性"的另一面。
 
 ### 6.14 Harness 极简主义：helpers 也是抽象
 
@@ -1357,7 +1359,7 @@ Anthropic、OpenAI、ThoughtWorks、Google、LangChain……从学术界到工�
 - [Build an Agent Improvement Loop with Traces, Evals, and Codex](https://developers.openai.com/cookbook/examples/agents_sdk/agent_improvement_loop)（OpenAI，2026.05）——Traces→Evals→HALO→Codex 飞轮，人工审查 + 自动执行的 Harness 改进闭环
 - [Loop Engineering](https://addyosmani.com/blog/loop-engineering/)（Addy Osmani / Google，2026.06）——Loop Engineering 的体系化定义：五大构建块 + State，与 Harness 的关系定位，风险与争议分析
 - [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)（Anthropic，2025.11）——initializer + coding agent 双角色 harness，200+ JSON feature 清单 + git 回滚 + 进度文件实现跨 context window 状态交接
-- [When AI builds itself](https://www.anthropic.com/institute/recursive-self-improvement)（Anthropic Institute，2026.04）——内部一手数据：80%+ 代码由 Claude 编写，人均产出 8 倍增长，1/3 生产 Bug 被自动 reviewer 抓出；提出"人类审查成为新瓶颈"（Amdahl's law）
+- [When AI builds itself](https://www.anthropic.com/institute/recursive-self-improvement)（Anthropic Institute，2026.04）——内部一手数据：80%+ 代码由 Claude 编写，典型工程师每日合并代码行数约 8 倍（数量指标），1/3 生产 Bug 被自动 reviewer 抓出；提出"人类审查成为新瓶颈"（Amdahl's law）
 - [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)（Anthropic，2026.01）——agent harness 的 8 步评估设计框架，区分 capability/regression evals，三类 grader 组合策略
 - [Better Harness: A Recipe for Harness Hill-Climbing with Evals](https://www.langchain.com/blog/better-harness-a-recipe-for-harness-hill-climbing-with-evals)（LangChain，2026.04）——6 步 Harness 迭代 recipe，holdout set 防过拟合，跨模型（Sonnet / GLM-5）验证泛化
 - [Tuning Deep Agents to Work Well with Different Models](https://www.langchain.com/blog/tuning-deep-agents-different-models)（LangChain，2026.04）——Harness Profiles 概念与实现，按模型维护专属配置覆盖层，tau2-bench +10-20pp
