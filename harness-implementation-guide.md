@@ -1,7 +1,7 @@
 # Harness 工程实施指南（Claude Code 落地手册）
 
-> 这份指南告诉你**在 Claude Code 里具体配什么、写在哪个文件**。想理解"为什么这么配"看 `harness-engineering-article.md`；想评估现有项目做到什么程度看 `harness-principles.md`。
-> 三个文件的关系：**文章讲 Why → 框架讲 Measure → 本指南讲 How（Claude Code 版）。**
+> 这份指南告诉你**具体配什么、写在哪个文件**。正文以 Claude Code 展开四层实施，顶部速查表已附 **Antigravity CLI 与 Codex 原语对照**，Antigravity 专项落地差异见 **附录 C**。想理解"为什么这么配"看 `harness-engineering-article.md`；想评估现有项目做到什么程度看 `harness-principles.md`。
+> 三个文件的关系：**文章讲 Why → 框架讲 Measure → 本指南讲 How。** 本库终态将演进为「工具中立核心 + 三客户端薄适配卡」；现阶段 Codex 的详细配置教程与 CLI 版本核验暂以独立仓库 `codex-engineering-handbook` 为准，本文不重复维护其细节。
 
 ## 核心思想
 
@@ -11,22 +11,25 @@
 
 ---
 
-## Claude Code Harness 原语速查
+## 多客户端 Harness 原语速查
 
-动手前先建立心智地图：Claude Code 的 Harness 由这些零件组成。后续每一层就是把其中几个零件配起来。
+动手前先建立心智地图：三家客户端的工程约束与编排原则相通，差异主要在下方这一层原语映射（核验日期：2026-11-22；本机实测 `agy 1.5.14`、`codex-cli 0.171.0`；详细协议与版本边界见对应附录与官方文档）：
 
-| 原语 | 配在哪 | 常驻/按需 | 一句话用途 | 详见 |
-|------|--------|----------|-----------|------|
-| **CLAUDE.md** | 项目根 / 子目录 | 常驻上下文 | 项目规则、技术栈、禁令——每次会话自动加载 | §1, §3 |
-| **Permissions** | `settings.json` 的 `permissions` | 常驻 | allow/ask/deny 控制工具与路径权限 | §2, §5, §10 |
-| **Hooks** | `settings.json` 的 `hooks` | 事件触发 | 在工具调用前后/会话节点跑确定性脚本（=中间件） | §7, 附录 A |
-| **Subagents** | `.claude/agents/*.md` | 按需调用 | 独立上下文+独立工具集的专用 Agent（=maker/checker） | §6 |
-| **Skills** | `.claude/skills/<name>/SKILL.md` | 按需调用 | 可复用的流程能力包，按需进上下文 | §3, §9 |
-| **Slash commands** | `.claude/commands/*.md` | 手动触发 | 一段可参数化的 prompt 模板 | §6 |
-| **MCP servers** | `.mcp.json` | 常驻连接 | 让 Agent 读 GitHub/数据库/飞书等外部系统 | §4(Loop) |
-| **statusline** | `settings.json` 的 `statusLine` | 常驻显示 | 自定义状态栏（可观测性的一个出口） | §10 |
+| 原语 | Claude Code（正文主干） | Antigravity CLI（详见附录 C） | Codex（详见 `codex-engineering-handbook`） | 常驻/按需 | 详见 |
+|------|-------------------------|-------------------------------|---------------------------------------------|-----------|------|
+| **项目指令** | `CLAUDE.md`（根/子目录） | `AGENTS.md` / `GEMINI.md`（根/子目录）；全局 `~/.gemini/AGENTS.md` | `AGENTS.md` / `AGENTS.override.md`；全局 `~/.codex/AGENTS.md` | 常驻上下文 | §1, §3, 附录 C |
+| **权限与沙箱** | `settings.json` `permissions` | 默认终端沙箱 + 审批策略（可叠加 `PreToolUse` hook） | `config.toml` `sandbox_mode` / `approval_policy` 与 `.rules` | 常驻 | §2, §5, §10 |
+| **Hooks** | `settings.json` `hooks` | `.agents/hooks.json` 或 `~/.gemini/config/hooks.json` | `.codex/hooks.json` 或 `config.toml` `[hooks]`（经 `/hooks` 信任） | 事件触发 | §7, 附录 A/C |
+| **Subagents** | `.claude/agents/*.md` | 内置（如 `research`/`self`）+ `define_subagent` / `invoke_subagent` | `~/.codex/agents/*.toml` / `.codex/agents/*.toml`（`/subagents`） | 按需调用 | §6, 附录 C |
+| **Skills** | `.claude/skills/<name>/SKILL.md` | `.agents/skills/`、`~/.gemini/config/skills/`、`skills.json` | `.agents/skills/`、`~/.agents/skills/`（`$` 触发） | 按需加载 | §3, §9, 附录 C |
+| **命令与编排** | `.claude/commands/*.md` | 内置 `/grill-me` `/plan` `/boost` `/teamwork` `/goal` + `run_workflow` | 内置命令 + 非交互式 `codex exec` | 手动/脚本触发 | §6, 附录 C |
+| **MCP servers** | `.mcp.json` | `.agents/mcp_config.json`、`~/.gemini/config/mcp_config.json` | `config.toml` `[mcp_servers]` | 常驻连接 | §4(Loop), 附录 C |
+| **插件打包** | Plugin | `plugins/<name>/plugin.json` + `.agents/plugins.json` | Plugin | 按需启用 | 附录 C |
+| **定时/循环调度** | `/loop` + `loop.md` / Routines | `schedule` / `/schedule` | `codex exec` + 系统 cron / 外部控制面 | 定时触发 | 第四层, 附录 C |
+| **状态栏** | `settings.json` `statusLine` | 无独立 `statusLine` 配置文件 | 终端状态展示（以 CLI 版本为准） | 常驻显示 | §10 |
 
-> **两个最容易混的概念**：`CLAUDE.md` 是**常驻上下文**（每次都在），`Skill` 是**按需能力包**（用到才加载）。把流程性内容写成 Skill，把"永远适用的规则"写进 CLAUDE.md——别搞反。
+> **两个最容易混的概念**：`CLAUDE.md` / `AGENTS.md` 是**常驻上下文**（每次都在），`Skill` 是**按需能力包**（用到才加载）。把流程性内容写成 Skill，把"永远适用的规则"写进项目指令——别搞反。
+> **单源边界**：Codex 侧的配置细节、版本发布差异与评测体系由 `codex-engineering-handbook` 统一维护，本表仅作横向速查。
 
 ---
 
@@ -590,11 +593,76 @@ each and resolve the thread. If green and quiet, say so in one line.
 
 ---
 
+## 附录 C：Antigravity CLI 落地映射（Antigravity 主 + Codex 辅）
+
+> 核验日期：2026-11-22；核验版本：本机 `agy 1.5.14`、`codex-cli 0.171.0`，对照随包文档 `agy-customizations`、`run-workflow` 及 Codex 源码/手册。**验证边界**：本附录记录原语映射与接口契约，待用 Antigravity 完整打穿首个中大型实战项目后再与主干统一重构为「中立主干 + 客户端适配卡」。
+
+### C.1 配置发现、预算与常见坑
+
+- **发现位置与优先级**（高 → 低）：项目工作区（从 CWD 向上至仓库根的 `.agents/`、目录级 `AGENTS.md` / `GEMINI.md`）→ 工作区声明配置（`.agents/skills.json` / `plugins.json`）→ 全局目录 `~/.gemini/config/` 与全局 `~/.gemini/AGENTS.md` → 内置扩展 → 全局声明配置。额外加入的工作区与非 Git 目录按各自根目录发现；**遇到独立子项目的 `.git` 根即停止向上递归**，因此不能在父目录（如 `~/Works/AGENTS.md`）放一份规则去统一覆盖多个独立 Git 子项目。
+- **两条独立的上下文预算规则**（`agy-customizations/docs/rules.md`）：
+  1. **单文件上限 24 KB**（展开 include 后）：超限按行边界截断；
+  2. **总规则预算 20,000 tokens**（Always-on 与全局规则共享，与 Skills/MCP 预算分离）：超预算后自动从完整内联降级为文件路径指针，按需读取。
+- **MCP 入口与传输差异**：Antigravity CLI 支持工作区 `.agents/mcp_config.json`、全局 `~/.gemini/config/mcp_config.json` 与插件 `<plugin_dir>/mcp_config.json`；CLI 支持 Stdio 与 Streamable HTTP，不支持旧版 HTTP+SSE（区别于 Python SDK 的额外传输支持，具体以对应版本文档为准）。
+
+### C.2 开发与非开发场景隔离（两阶段演进）
+
+若同一客户端同时承接软件开发与写作、知识管理、日常运营等非开发任务，**不要把软件研发流程塞进全局 `~/.gemini/AGENTS.md`**，推荐按两阶段演进：
+
+1. **阶段一（默认推荐：全局 Skills 渐进披露 + 项目内 `AGENTS.md` 接力）**
+   - 全局 `~/.gemini/AGENTS.md` 仅放跨场景通用底线；
+   - 软件开发流程（冷启动、Spec 对账、异构审查等）放进按需加载的 Skills（官方发现路径为项目 `.agents/skills/` 或全局 `~/.gemini/config/skills/`，亦可用 `skills.json` 登记外部目录，注意只启用一种挂载方式避免重名遮蔽）；
+   - 由冷启动流程把精简开发路由写入**该开发项目自己的根 `AGENTS.md`**，并对 Antigravity 专属命令/技能显式加注 `[Antigravity]`，避免与同仓库的 Codex / Claude Code 串台。
+2. **阶段二（演进判据：本地 Plugin 按项目挂载）**
+   - 仅当出现以下任一真实痛点时升级：① 修改一次开发流程/审查规则后需手动同步 **≥3 个活跃开发项目**的 `AGENTS.md`；② 需要跨多个开发项目共享 Antigravity 专属 `hooks.json` 或专用 MCP；
+   - 做法：打包为包含 `plugin.json`、`rules/AGENTS.md`、`skills/`、`hooks.json`（原生插件须直接放插件根目录）的本地 Plugin，全局保持关闭，仅在软件开发项目用 `.agents/plugins.json` 引用挂载。
+
+> **个人实践示例（非通用默认路径）**：本机可将自建技能正文按平台维护在 `~/.agents/skill-sources/local/antigravity/`，通过符号链接挂入 `~/.gemini/config/skills/`（如 `project-bootstrap`、`codex-hetero-review`、`spec-and-ratchet`），避免污染外部技能包管理器目录。
+
+### C.3 编排原语升级与 Codex 异构复核
+
+- **用原生模式与确定性代码取代手写长 Prompt 编排**：
+  - 需求与规划：原生 `/grill-me`（需求决策收敛）→ `/plan`（分步计划）→ `/boost`（复杂项目深度校验）；
+  - 单点隔离探索：内置只读 `research` subagent（返回精炼摘要，防止主窗口上下文腐烂；若需专用只读代码审查角色，可通过自定义 subagent 如 `code-reviewer` 注册，官方内置列表以所用版本文档为准）；
+  - 多任务并行：规则确定且需结构化结果时用 `run_workflow`（Python 原语 `agent` / `parallel` / `pipeline` / `phase` + JSON `schema` 校验 `finish` 输出）；跨域动态协作用 `/teamwork`（`workspace="share"`）；长程推进用 `/goal`。
+  - **`run_workflow` 边界须知**：`schema` 只校验返回格式，**不约束写权限**（写权限须由 agent 类型与工具集控制）；`parallel()` 中任一任务失败会取消兄弟任务；并行写入前必须先冻结契约并明确工作区基线、集成回主分支方式、冲突归属，以及合并后对同一集成快照的统一终审。
+- **与 Codex 异构只读审查（以 `codex-cli 0.171.0` 为准）**：
+  - 主仓库用唯一一份 `AGENTS.md` + 统一 `check` 命令 + 工具中立门禁（`lefthook`/CI）对齐双端标准；
+  - `codex-cli 0.171.0` 中 `codex exec review --base` 与自定义 prompt 互斥且原生 review 路径不透传 `--output-schema`，因此**文档对抗审查与分支代码审查均推荐统一走只读 `codex exec` + `--output-schema`**，由外层包装脚本提供精确范围与清单：
+    ```bash
+    # 仓库内审查（例如由包装脚本拼装 diff + review-checklist 作为 stdin）
+    codex exec -s read-only --ephemeral -C /abs/path/to/repo \
+      --output-schema /abs/path/to/review-output.schema.json \
+      -o /tmp/codex-review-result.json - < /tmp/review-prompt.txt
+
+    # 独立文档快照审查（位于 Git 仓库外时加 --skip-git-repo-check）
+    codex exec -s read-only --ephemeral --skip-git-repo-check -C /tmp/review-snapshot-dir \
+      --output-schema /abs/path/to/review-output.schema.json \
+      -o /tmp/codex-doc-review.json - < /tmp/doc-prompt.txt
+    ```
+  - **只读隔离门禁契约**：`-s read-only` 不能单独阻断受信任项目配置里可能启动的本地 MCP 或外部工具，且 `-o` 由 CLI 进程直接打开写入。接入自动化流程时必须做到：① `-o` 路径位于被审仓库/快照之外且原子独占创建；② 仅面向受信任仓库或使用经过核查的隔离配置，避免加载不受控的项目 Hooks/MCP/插件；③ 审查前后核验目标文件摘要或 `base`/`merge-base`/`HEAD` 未漂移，放行必须同时满足「退出码 0 + 无截断完整覆盖 + 版本一致 + 结构化 JSON 校验通过且 `verdict == PASS`」。
+
+### C.4 Hooks 协议关键差异（对比附录 A）
+
+Antigravity 的 `hooks.json`（位于 `.agents/hooks.json`、`~/.gemini/config/hooks.json` 或原生插件根目录 `<plugin_dir>/hooks.json`）与 Claude Code 附录 A 有四处结构差异：
+
+1. **顶层按命名 Hook 分组**：顶层 key 是自定义 hook 名（可设 `"enabled": false` 开关），其下才挂事件数组，而不是 Claude Code 的 `{"hooks": {...}}`。
+2. **6 类事件分两种结构**：`PreToolUse`、`PostToolUse` 使用带 `matcher` 正则（匹配工具名，如 `run_command`）与 `hooks` 的分组结构；`SessionStart`、`PreInvocation`、`PostInvocation`、`Stop` 为扁平 handler 列表。
+3. **JSON 键名采用 camelCase**：stdin 公共字段含 `conversationId`、`workspacePaths`、`hookEventName`、`cwd`、`toolCall`（含 `name`、`args`）等（其中 `hookEventName` / `cwd` 随 CLI 1.5.4+ 引入，跨版本核对随包文档）。
+4. **`PreToolUse` 决策协议不同**：通过 stdout JSON 顶层 `decision` 控制拦截（常用值如 `allow`、`deny`、`ask`、`force_ask`，完整枚举以对应版本官方文档为准），并支持 `overwrite` 对工具入参做顶层浅合并改写，而非 Claude Code 的 `hookSpecificOutput.permissionDecision`。
+
+### C.5 跨工具状态与记忆边界
+
+- **项目权威状态一律落盘仓库**（`ROADMAP.md`、`docs/adr/`、`docs/review-checklist.md`、`docs/SECURITY-DEBT.md`、`evals/`），不绑定单一客户端的私有记忆数据库，确保 Antigravity、Codex、Claude Code 随时无缝接手。
+- **跨项目个人记忆独立隔离**：仅存放跨会话可复用的个人稳定偏好、通用踩坑与方法论决策（个人实例可选 `basic-memory` MCP 等外部记忆服务）；**严禁将项目权威进度、未脱敏业务数据、密钥或凭证写入跨项目记忆库**。
+
+---
+
 ## 与其他文件的关系
 
 | 我要…… | 看哪个 |
 |---------|--------|
 | 理解 Harness Engineering 是什么、为什么重要 | `harness-engineering-article.md` |
 | 评估现有项目的 Harness 成熟度 | `harness-principles.md` |
-| 动手给我的项目配 Claude Code Harness | 就这份 |
+| 动手给我的项目配 Harness（Claude Code 主干 + Antigravity/Codex 对照） | 就这份 |
 | 查某个配置的理论依据 | `harness-principles.md` → 对应维度的"来源"字段 |
